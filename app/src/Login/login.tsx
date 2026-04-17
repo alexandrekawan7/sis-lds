@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import fundo from "@/app/assets/fundo.png";
 import professorIcon from "@/app/assets/professor.png";
@@ -17,6 +18,7 @@ const roles = [
 ];
 
 export default function Login() {
+  const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -133,8 +135,8 @@ export default function Login() {
                     setErrorMsg("Dados não preenchidos");
                     return;
                   }
-                  // Futuramente validar com backend
-                  setErrorMsg("Dados inválidos ou não cadastrados!");
+                  setErrorMsg("");
+                  router.push("/home");
                 }}
               >
                 <div>
