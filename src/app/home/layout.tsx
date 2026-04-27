@@ -1,5 +1,5 @@
 "use client"
-import { isLoggedIn } from "@/src/services/auth";
+import { isLoggedIn } from "@/services/auth";
 import { redirect } from "next/navigation";
 import { useEffect } from "react"
 
