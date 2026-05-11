@@ -20,7 +20,8 @@ export const permissions = [
 export type Permission = (typeof permissions)[number] | string;
 
 export const defaultRolePermissions: Record<string, Permission[]> = {
-  SOLICITANTE: ['PRINT_REQUESTS_VIEW_OWN', 'PRINT_REQUESTS_CREATE'],
-  IMPRESSOR: ['PRINT_REQUESTS_VIEW', 'EXECUTIONS_CREATE'],
-  ADMINISTRADOR: [...permissions]
+  Administrador: [...permissions],
+  Solicitante: ['PRINT_REQUESTS_VIEW_OWN', 'PRINT_REQUESTS_CREATE'],
+  Impressor: ['PRINT_REQUESTS_VIEW', 'EXECUTIONS_CREATE'],
+  Coordenador: ['PRINT_REQUESTS_VIEW', 'PRINT_REQUESTS_UPDATE_STATUS', 'APPROVALS_CREATE', 'REPORTS_VIEW']
 };

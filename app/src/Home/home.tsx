@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import checkCircle from "@/imagens/Check circle.png";
 
 type User = {
   id: number;
@@ -19,7 +21,7 @@ const initialUsers: User[] = [
   {
     id: 1,
     nome: "Saulo Bezerra Lima",
-    cargo: "Professor",
+    cargo: "Solicitante",
     area: "Sistemas de Informação",
     matricula: "2022103500273",
     telefone: "(88) 94548-5854",
@@ -30,7 +32,7 @@ const initialUsers: User[] = [
   {
     id: 2,
     nome: "Lívia Pereira Torres",
-    cargo: "Professor",
+    cargo: "Solicitante",
     area: "Português",
     matricula: "2022103500278",
     telefone: "(88) 94548-5854",
@@ -41,7 +43,7 @@ const initialUsers: User[] = [
   {
     id: 3,
     nome: "Mário Ribeiro de Sousa Alcantara",
-    cargo: "Técnico",
+    cargo: "Impressor",
     area: "Lab. Redes",
     matricula: "2022103500298",
     telefone: "(88) 94548-5854",
@@ -52,7 +54,7 @@ const initialUsers: User[] = [
   {
     id: 4,
     nome: "Maria Francisca de Lima Mota",
-    cargo: "Professor",
+    cargo: "Coordenador",
     area: "Matemática",
     matricula: "202210350027389",
     telefone: "(88) 94548-5854",
@@ -63,7 +65,7 @@ const initialUsers: User[] = [
   {
     id: 5,
     nome: "Noélia Devanir da Silva Lima",
-    cargo: "Professor",
+    cargo: "Solicitante",
     area: "História",
     matricula: "202210350027378",
     telefone: "(88) 94548-5854",
@@ -87,7 +89,7 @@ const emptyForm: NewUserForm = {
   nome: "",
   email: "",
   telefone: "",
-  cargo: "Técnico",
+  cargo: "Solicitante",
   area: "Laboratório de Redes",
   matricula: "",
   senha: "",
@@ -95,7 +97,7 @@ const emptyForm: NewUserForm = {
 
 type ModalMode = "create" | "edit";
 
-const cargoOptions = ["Técnico", "Professor", "Administrador", "Aluno"];
+const cargoOptions = ["Administrador", "Solicitante", "Impressor", "Coordenador"];
 const areaOptions = [
   "Laboratório de Redes",
   "Lab. Redes",
@@ -114,7 +116,13 @@ export default function Home() {
   const [showPassword, setShowPassword] = useState(false);
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [filterCargo, setFilterCargo] = useState("");
   const router = useRouter();
+
+  const filteredUsers = filterCargo
+    ? users.filter((user) => user.cargo === filterCargo)
+    : users;
 
   const handleAddUser = () => {
     setModalMode("create");
@@ -177,11 +185,23 @@ export default function Home() {
     if (!deleteTarget) return;
     setUsers((current) => current.filter((item) => item.id !== deleteTarget.id));
     setDeleteTarget(null);
+    setSuccessMsg("Cadastro excluído com sucesso!");
   };
+
+  const closeSuccess = () => setSuccessMsg("");
 
   const handleLogout = () => {
     router.push("/");
   };
+
+  useEffect(() => {
+    if (!deleteTarget) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") cancelDelete();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deleteTarget]);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#efefef] font-[Poppins,sans-serif]">
@@ -197,6 +217,8 @@ export default function Home() {
         }
         .shadow-soft { box-shadow: 0 10px 30px rgba(0,0,0,.08); }
         .shadow-nav { box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
       `}</style>
 
       <div className="flex min-h-screen">
@@ -226,7 +248,7 @@ export default function Home() {
                 }`}
               >
                 <h2 className="text-[24px] font-semibold leading-none">Augusto</h2>
-                <p className="mt-1 text-[22px] leading-tight text-white/75">Professor</p>
+                <p className="mt-1 text-[22px] leading-tight text-white/75">Administrador</p>
               </div>
             </div>
 
@@ -341,10 +363,25 @@ export default function Home() {
         {/* Main */}
         <main className="relative flex-1 px-16 pb-16 pt-20">
           <div className="mx-auto max-w-350 pt-16">
-            <div className="mb-8 flex items-center justify-end gap-4">
+            <div className="mb-8 flex items-center justify-end gap-3">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base">👤</span>
+                <select
+                  value={filterCargo}
+                  onChange={(e) => setFilterCargo(e.target.value)}
+                  className="h-[41px] w-[243px] rounded-[15px] border pl-9 pr-4 text-sm text-[#333] outline-none"
+                  style={{ border: "1px solid #999" }}
+                >
+                  <option value="">Todos os tipos</option>
+                  {cargoOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
               <button
                 onClick={handleAddUser}
-                className="shadow-soft rounded-2xl bg-[#37a93f] px-6 py-3 text-[18px] font-semibold text-white transition hover:bg-[#2f9737]"
+                className="h-[41px] w-[243px] rounded-[15px] bg-[#28a745] text-[15px] font-semibold text-white transition-all duration-200 hover:bg-[#218838]"
+                style={{ cursor: "pointer", border: "none" }}
               >
                 Adicionar usuário
               </button>
@@ -377,7 +414,7 @@ export default function Home() {
 
                   {/* Rows */}
                   <div className="shadow-soft divide-y divide-black/5 rounded-xl bg-white text-[13px] text-[#5b5b5b]">
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => (
                       <div key={user.id} className="table-grid px-6 py-5">
                         <div>{user.id}</div>
                         <div>{user.nome}</div>
@@ -610,54 +647,60 @@ export default function Home() {
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
-          <div className="shadow-soft w-full max-w-[440px] rounded-3xl bg-white p-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-                <svg
-                  className="h-8 w-8 text-[#d92d2d]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </div>
-              <h2 className="text-[22px] font-bold text-[#1f1f1f]">
-                Confirmar exclusão
-              </h2>
-              <p className="mt-3 text-[15px] text-[#555]">
-                Deseja excluir o usuário{" "}
-                <span className="font-semibold text-[#1f1f1f]">
-                  &quot;{deleteTarget.nome}&quot;
-                </span>
-                ?
-              </p>
-              <p className="mt-1 text-[13px] text-[#888]">
-                Esta ação não pode ser desfeita.
-              </p>
+        <div className="fixed inset-0 z-50 flex animate-[fadeIn_0.2s_ease] items-center justify-center bg-black/50">
+          <div
+            className="flex animate-[scaleIn_0.2s_ease] flex-col items-center rounded-[14px] bg-white text-center"
+            style={{
+              width: "420px",
+              padding: "28px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+            }}
+          >
+            <h2 className="text-[22px] font-bold text-[#111]">
+              Tem certeza que deseja excluir?
+            </h2>
 
-              <div className="mt-6 flex w-full justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={cancelDelete}
-                  className="rounded-xl bg-[#9a9a9a] px-8 py-2.5 text-[16px] font-semibold text-white transition hover:bg-[#7a7a7a]"
-                >
-                  Não
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDelete}
-                  className="rounded-xl bg-[#d92d2d] px-8 py-2.5 text-[16px] font-semibold text-white transition hover:bg-[#bf2525]"
-                >
-                  Sim
-                </button>
-              </div>
+            <div className="mt-7 flex gap-4">
+              <button
+                type="button"
+                onClick={cancelDelete}
+                className="rounded-[10px] border border-[#d1d5db] bg-white px-7 py-3 text-[15px] font-semibold text-[#111] transition-all duration-200 hover:bg-[#f3f4f6]"
+                style={{ cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="rounded-[10px] bg-[#dc2626] px-7 py-3 text-[15px] font-semibold text-white transition-all duration-200 hover:bg-[#b91c1c]"
+                style={{ cursor: "pointer", border: "none" }}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {successMsg && (
+        <div
+          className="fixed inset-0 z-50 flex animate-[fadeIn_0.2s_ease] items-center justify-center bg-black/50"
+          onClick={closeSuccess}
+        >
+          <div
+            className="flex animate-[scaleIn_0.2s_ease] flex-col items-center rounded-[14px] bg-white text-center"
+            style={{
+              width: "420px",
+              padding: "28px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-6 text-lg font-bold text-[#111]">
+              {successMsg}
+            </h2>
+            <div className="flex h-20 w-20 items-center justify-center">
+              <Image src={checkCircle} alt="" width={80} height={80} />
             </div>
           </div>
         </div>
