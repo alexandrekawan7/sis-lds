@@ -1,142 +1,196 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
-type ProfileData = {
-  nome: string;
-  email: string;
-  numero: string;
-  matricula: string;
-  departamento: string;
+import { MANAGE_USERS_PERMISSION } from "@/lib/permissions";
+import { useTRPC } from "@/trpc/react";
+
+type ProfileDraft = {
+  name: string;
+  phone: string;
+  photoDataUrl: string | null;
 };
 
-type ImageTransform = {
-  x: number;
-  y: number;
-  scale: number;
+const EMPTY_DRAFT: ProfileDraft = {
+  name: "",
+  phone: "",
+  photoDataUrl: null,
 };
 
-const DEFAULT_PROFILE: ProfileData = {
-  nome: "Augusto Oliveira Mendes",
-  email: "augusto.gmail.com",
-  numero: "(88) 91234-5678",
-  matricula: "123456",
-  departamento: "Matemática",
-};
+const MAX_PHOTO_SIZE_BYTES = 512 * 1024;
+const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-const DEFAULT_IMAGE =
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80";
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
 
-const DEFAULT_TRANSFORM: ImageTransform = { x: 0, y: 0, scale: 1 };
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
 
-export default function Perfil() {
+      reject(new Error("Falha ao ler imagem."));
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Falha ao ler imagem."));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+function getInitials(name: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (!parts.length) return "U";
+
+  return parts.map((part) => part[0]?.toUpperCase() ?? "").join("");
+}
+
+export default function PerfilPage() {
+  const router = useRouter();
+  const trpc = useTRPC();
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
-  const [draft, setDraft] = useState<ProfileData>(DEFAULT_PROFILE);
-  const [profileImage, setProfileImage] = useState<string>(DEFAULT_IMAGE);
-  const [draftImage, setDraftImage] = useState<string>(DEFAULT_IMAGE);
-  const [imageTransform, setImageTransform] =
-    useState<ImageTransform>(DEFAULT_TRANSFORM);
-  const [draftTransform, setDraftTransform] =
-    useState<ImageTransform>(DEFAULT_TRANSFORM);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dragRef = useRef<{
-    startX: number;
-    startY: number;
-    origX: number;
-    origY: number;
-  } | null>(null);
-  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState("");
+  const [draft, setDraft] = useState<ProfileDraft>(EMPTY_DRAFT);
 
-  const handleLogout = () => {
-    router.push("/");
-  };
+  const meQuery = useQuery(trpc.user.me.queryOptions());
 
-  const goInicio = () => {
-    router.push("/home");
-  };
+  const updateMeMutation = useMutation(
+    trpc.user.updateMe.mutationOptions({
+      onSuccess: async () => {
+        setIsEditing(false);
+        setErrorMessage("");
+        await meQuery.refetch();
+      },
+      onError: (error) => {
+        setErrorMessage(error.message);
+      },
+    })
+  );
 
-  const goCadastros = () => {
-    router.push("/home/users");
-  };
+  const goInicio = () => router.push("/home");
+  const goCadastros = () => router.push("/home/users");
+  const canManageUsers =
+    meQuery.data?.role.permissions.some(
+      (permission) => permission.name === MANAGE_USERS_PERMISSION
+    ) ?? false;
 
   const startEditing = () => {
-    setDraft(profile);
-    setDraftImage(profileImage);
-    setDraftTransform(imageTransform);
+    if (!meQuery.data) return;
+
+    setDraft({
+      name: meQuery.data.name,
+      phone: meQuery.data.phone ?? "",
+      photoDataUrl: meQuery.data.photoDataUrl,
+    });
+    setErrorMessage("");
     setIsEditing(true);
   };
 
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" });
+  };
+
+  const saveEditing = async () => {
+    await updateMeMutation.mutateAsync({
+      name: draft.name,
+      phone: draft.phone || null,
+      photoDataUrl: draft.photoDataUrl,
+    });
+  };
+
   const cancelEditing = () => {
-    setDraft(profile);
-    setDraftImage(profileImage);
-    setDraftTransform(imageTransform);
+    if (!meQuery.data) {
+      setIsEditing(false);
+      return;
+    }
+
+    setDraft({
+      name: meQuery.data.name,
+      phone: meQuery.data.phone ?? "",
+      photoDataUrl: meQuery.data.photoDataUrl,
+    });
+    setErrorMessage("");
     setIsEditing(false);
   };
 
-  const saveEditing = () => {
-    setProfile(draft);
-    setProfileImage(draftImage);
-    setImageTransform(draftTransform);
-    setIsEditing(false);
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
+      setErrorMessage("Formato de imagem invalido. Use JPG, PNG, WEBP ou GIF.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > MAX_PHOTO_SIZE_BYTES) {
+      setErrorMessage("A imagem deve ter no maximo 512KB.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const photoDataUrl = await fileToDataUrl(file);
+      setDraft((current) => ({
+        ...current,
+        photoDataUrl,
+      }));
+      setErrorMessage("");
+    } catch {
+      setErrorMessage("Nao foi possivel processar a imagem selecionada.");
+    }
+
+    event.target.value = "";
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setDraftImage(reader.result);
-        setDraftTransform(DEFAULT_TRANSFORM);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const updateDraft = (field: keyof ProfileData, value: string) => {
-    setDraft((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isEditing) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: draftTransform.x,
-      origY: draftTransform.y,
-    };
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    setDraftTransform((prev) => ({
-      ...prev,
-      x: dragRef.current!.origX + dx,
-      y: dragRef.current!.origY + dy,
+  const removeSelectedPhoto = () => {
+    setDraft((current) => ({
+      ...current,
+      photoDataUrl: null,
     }));
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-    dragRef.current = null;
-  };
+  if (meQuery.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#efefef] font-[Poppins,sans-serif] text-[#555]">
+        Carregando perfil...
+      </div>
+    );
+  }
 
-  const displayedImage = isEditing ? draftImage : profileImage;
-  const displayedTransform = isEditing ? draftTransform : imageTransform;
-  const transformStyle = {
-    transform: `translate(calc(-50% + ${displayedTransform.x}px), calc(-50% + ${displayedTransform.y}px)) scale(${displayedTransform.scale})`,
-  };
-  const sidebarTransformStyle = {
-    transform: `translate(calc(-50% + ${imageTransform.x * 0.25}px), calc(-50% + ${imageTransform.y * 0.25}px)) scale(${imageTransform.scale})`,
-  };
+  if (!meQuery.data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#efefef] px-4 font-[Poppins,sans-serif]">
+        <div className="w-full max-w-xl rounded-2xl bg-white p-8 text-center shadow-md">
+          <p className="text-[#cc2c2c]">Não foi possível carregar o perfil.</p>
+          <button
+            type="button"
+            onClick={() => meQuery.refetch()}
+            className="mt-4 rounded-full bg-[#2ea03b] px-6 py-2 text-sm font-semibold text-white"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#efefef] font-[Poppins,sans-serif]">
@@ -146,7 +200,6 @@ export default function Perfil() {
       `}</style>
 
       <div className="flex min-h-screen">
-        {/* Sidebar */}
         <aside
           className={`relative flex flex-col overflow-hidden bg-[#2ea03b] py-8 text-white transition-all duration-300 ${
             isSidebarOpen ? "w-75 px-6" : "w-20 px-3"
@@ -157,26 +210,36 @@ export default function Perfil() {
               isSidebarOpen ? "justify-between gap-4" : "flex-col items-center gap-4"
             }`}
           >
-            <div className={`flex items-center overflow-hidden transition-all duration-200 ${isSidebarOpen ? "gap-4" : "gap-0"}`}>
-              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-white/20 shadow-lg ring-4 ring-white/15">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={profileImage}
-                  alt="Avatar"
-                  draggable={false}
-                  style={sidebarTransformStyle}
-                  className="absolute left-1/2 top-1/2 h-full w-full max-w-none object-cover"
-                />
+            <div
+              className={`flex items-center overflow-hidden transition-all duration-200 ${
+                isSidebarOpen ? "gap-4" : "gap-0"
+              }`}
+            >
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 text-[20px] font-semibold text-white shadow-lg ring-4 ring-white/15">
+                {meQuery.data.photoDataUrl ? (
+                  <Image
+                    src={meQuery.data.photoDataUrl}
+                    alt={`Foto de ${meQuery.data.name}`}
+                    width={64}
+                    height={64}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>{getInitials(meQuery.data.name)}</span>
+                )}
               </div>
               <div
                 className={`min-w-0 overflow-hidden transition-all duration-200 ${
-                  isSidebarOpen ? "max-w-[220px] opacity-100" : "max-w-0 opacity-0"
+                  isSidebarOpen ? "max-w-55 opacity-100" : "max-w-0 opacity-0"
                 }`}
               >
                 <h2 className="text-[24px] font-semibold leading-none">
-                  {profile.nome.split(" ")[0]}
+                  {meQuery.data.name.split(" ")[0]}
                 </h2>
-                <p className="mt-1 text-[22px] leading-tight text-white/75">Administrador</p>
+                <p className="mt-1 text-[18px] leading-tight text-white/75">
+                  {meQuery.data.role.name}
+                </p>
               </div>
             </div>
 
@@ -216,43 +279,95 @@ export default function Perfil() {
               </svg>
               <span
                 className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
-                  isSidebarOpen ? "max-w-[160px] opacity-100" : "max-w-0 opacity-0"
+                  isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
                 }`}
               >
                 Início
               </span>
             </button>
 
-            <button
-              type="button"
-              onClick={goCadastros}
-              className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
-                isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"
-              }`}
-            >
-              <svg
-                className="h-7 w-7"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path d="M7 3h8l4 4v14H5V3h2z" />
-                <path d="M15 3v5h5" />
-                <path d="M8 11h8M8 15h8M8 7h3" />
-              </svg>
-              <span
-                className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
-                  isSidebarOpen ? "max-w-[160px] opacity-100" : "max-w-0 opacity-0"
+            {canManageUsers && (
+              <button
+                type="button"
+                onClick={goCadastros}
+                className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
+                  isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"
                 }`}
               >
-                Cadastros
-              </span>
-            </button>
+                <svg
+                  className="h-7 w-7"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path d="M7 3h8l4 4v14H5V3h2z" />
+                  <path d="M15 3v5h5" />
+                  <path d="M8 11h8M8 15h8M8 7h3" />
+                </svg>
+                <span
+                  className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
+                    isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
+                  }`}
+                >
+                  Cadastros
+                </span>
+              </button>
+            )}
 
-            <a
-              href="#"
-              className={`shadow-nav flex rounded-2xl bg-[#228d2e] py-3 ${
+            {canManageUsers && (
+              <button
+                type="button"
+                onClick={() => router.push("/home/roles")}
+                className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
+                  isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"
+                }`}
+              >
+                <svg className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 1.75 1.75 12 12 22.25 22.25 12 12 1.75Zm0 2.5 7.75 7.75L12 19.75 4.25 12 12 4.25Zm-1.25 3v3.5H7.25V13h3.5v3.5H13V13h3.5v-2.25H13v-3.5h-2.25Z" />
+                </svg>
+                <span
+                  className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
+                    isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
+                  }`}
+                >
+                  Cargos
+                </span>
+              </button>
+            )}
+
+            {canManageUsers && (
+              <button
+                type="button"
+                onClick={() => router.push("/home/departments")}
+                className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
+                  isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"
+                }`}
+              >
+                <svg
+                  className="h-7 w-7"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path d="M3 7h18" />
+                  <path d="M6 3h12v4H6z" />
+                  <path d="M6 11h12v10H6z" />
+                </svg>
+                <span
+                  className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
+                    isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
+                  }`}
+                >
+                  Departamentos
+                </span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className={`shadow-nav flex w-full rounded-2xl bg-[#228d2e] py-3 ${
                 isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"
               }`}
             >
@@ -260,13 +375,13 @@ export default function Perfil() {
                 <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
               </svg>
               <span
-                className={`overflow-hidden whitespace-nowrap text-[17px] transition-all duration-200 ${
-                  isSidebarOpen ? "max-w-[160px] opacity-100" : "max-w-0 opacity-0"
+                className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
+                  isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
                 }`}
               >
                 Perfil
               </span>
-            </a>
+            </button>
 
             <button
               type="button"
@@ -280,7 +395,7 @@ export default function Perfil() {
               </svg>
               <span
                 className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
-                  isSidebarOpen ? "max-w-[160px] opacity-100" : "max-w-0 opacity-0"
+                  isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
                 }`}
               >
                 Sair
@@ -289,226 +404,134 @@ export default function Perfil() {
           </nav>
         </aside>
 
-        {/* Main */}
         <main className="relative flex-1 px-16 pb-16 pt-16">
           <div className="mx-auto flex max-w-4xl flex-col items-center pt-24">
-            <div className="relative w-full max-w-[520px] rounded-3xl border-2 border-[#2ea03b] bg-white px-10 pb-10 pt-20">
-              {/* Avatar overlapping card */}
-              <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
-                <div className="relative">
-                  <div
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
-                    className={`relative h-32 w-32 overflow-hidden rounded-full bg-white ring-4 ring-[#2ea03b] ${
-                      isEditing ? "cursor-grab active:cursor-grabbing" : ""
-                    }`}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={displayedImage}
-                      alt="Foto do perfil"
-                      draggable={false}
-                      style={transformStyle}
-                      className="absolute left-1/2 top-1/2 h-full w-full max-w-none select-none object-cover"
-                    />
-                  </div>
+            <div className="w-full max-w-145 rounded-3xl border-2 border-[#2ea03b] bg-white p-10 shadow-soft">
+              <h2 className="mb-6 text-center text-[26px] font-bold text-[#1f1f1f]">Perfil</h2>
 
-                  {/* Botão de lápis (editar) */}
-                  {!isEditing && (
-                    <button
-                      type="button"
-                      onClick={startEditing}
-                      aria-label="Editar perfil"
-                      title="Editar perfil"
-                      className="absolute bottom-1 right-1 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#2ea03b] text-white shadow-md ring-2 ring-white transition hover:bg-[#228d2e]"
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                    </button>
-                  )}
-
-                  {/* Botão de câmera (trocar imagem) - aparece em modo edição */}
-                  {isEditing && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        aria-label="Trocar foto de perfil"
-                        title="Trocar foto de perfil"
-                        className="absolute bottom-1 right-1 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#2ea03b] text-white shadow-md ring-2 ring-white transition hover:bg-[#228d2e]"
-                      >
-                        <svg
-                          className="h-5 w-5"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                          <circle cx="12" cy="13" r="4" />
-                        </svg>
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {isEditing && (
-                <div className="mb-6 flex flex-col items-center gap-2">
-                  <p className="text-[12px] text-[#5b5b5b]">
-                    Arraste a foto para reposicionar
-                  </p>
-                  <div className="flex w-full max-w-70 items-center gap-3">
-                    <span className="text-[12px] font-bold text-[#1f1f1f]">
-                      Zoom
-                    </span>
-                    <input
-                      type="range"
-                      min={0.5}
-                      max={3}
-                      step={0.01}
-                      value={draftTransform.scale}
-                      onChange={(e) =>
-                        setDraftTransform((prev) => ({
-                          ...prev,
-                          scale: Number(e.target.value),
-                        }))
-                      }
-                      className="flex-1 accent-[#2ea03b]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setDraftTransform(DEFAULT_TRANSFORM)}
-                      className="rounded-full border border-[#2ea03b] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#2ea03b] transition hover:bg-[#2ea03b]/10"
-                    >
-                      Resetar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <h2 className="mb-6 text-center text-[26px] font-bold text-[#7a7a7a]">
-                Administrador
-              </h2>
-
-              {/* Info card */}
               <div className="mb-4 rounded-xl border border-black/20 p-5">
+                <p className="text-[14px] font-bold text-[#1f1f1f]">Foto de perfil</p>
+                <div className="mb-4 mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-black/20 bg-[#dfeee1] text-[22px] font-semibold text-[#2a6d2f]">
+                    {(isEditing ? draft.photoDataUrl : meQuery.data.photoDataUrl) ? (
+                      <Image
+                        src={(isEditing ? draft.photoDataUrl : meQuery.data.photoDataUrl) ?? ""}
+                        alt={`Foto de ${meQuery.data.name}`}
+                        width={96}
+                        height={96}
+                        unoptimized
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span>{getInitials(meQuery.data.name)}</span>
+                    )}
+                  </div>
+
+                  {isEditing && (
+                    <div>
+                      <div className="flex flex-wrap gap-3">
+                        <label className="cursor-pointer rounded-xl bg-[#2ea03b] px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-[#228d2e]">
+                          Trocar foto
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            onChange={handlePhotoChange}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={removeSelectedPhoto}
+                          className="rounded-xl bg-[#a7a7a7] px-4 py-2 text-[14px] font-semibold text-white transition hover:bg-[#8b8b8b]"
+                        >
+                          Remover foto
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[12px] text-[#6f6f6f]">
+                        Formatos aceitos: JPG, PNG, WEBP ou GIF. Tamanho maximo: 512KB.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <p className="text-[14px] font-bold text-[#1f1f1f]">Nome</p>
                 {isEditing ? (
                   <input
                     type="text"
-                    value={draft.nome}
-                    onChange={(e) => updateDraft("nome", e.target.value)}
-                    className="mb-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] text-[#1f1f1f] outline-none focus:border-[#2ea03b] focus:ring-1 focus:ring-[#2ea03b]"
+                    value={draft.name}
+                    onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))}
+                    className="mb-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] text-[#1f1f1f] outline-none focus:border-[#2ea03b]"
                   />
                 ) : (
-                  <p className="mb-3 text-[14px] text-[#5b5b5b]">
-                    {profile.nome}
-                  </p>
+                  <p className="mb-3 text-[14px] text-[#5b5b5b]">{meQuery.data.name}</p>
                 )}
 
                 <p className="text-[14px] font-bold text-[#1f1f1f]">Email</p>
-                {isEditing ? (
-                  <input
-                    type="email"
-                    value={draft.email}
-                    onChange={(e) => updateDraft("email", e.target.value)}
-                    className="mb-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] text-[#1f1f1f] outline-none focus:border-[#2ea03b] focus:ring-1 focus:ring-[#2ea03b]"
-                  />
-                ) : (
-                  <p className="mb-3 text-[14px] text-[#5b5b5b]">{profile.email}</p>
-                )}
+                <p className="mb-3 text-[14px] text-[#5b5b5b]">{meQuery.data.email}</p>
 
-                <p className="text-[14px] font-bold text-[#1f1f1f]">Número</p>
+                <p className="text-[14px] font-bold text-[#1f1f1f]">Telefone</p>
                 {isEditing ? (
                   <input
                     type="text"
-                    value={draft.numero}
-                    onChange={(e) => updateDraft("numero", e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] text-[#1f1f1f] outline-none focus:border-[#2ea03b] focus:ring-1 focus:ring-[#2ea03b]"
+                    value={draft.phone}
+                    onChange={(e) => setDraft((current) => ({ ...current, phone: e.target.value }))}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] text-[#1f1f1f] outline-none focus:border-[#2ea03b]"
                   />
                 ) : (
-                  <p className="text-[14px] text-[#5b5b5b]">{profile.numero}</p>
+                  <p className="text-[14px] text-[#5b5b5b]">{meQuery.data.phone || "-"}</p>
                 )}
               </div>
 
-              {/* Additional info */}
               <div className="rounded-xl border border-black/20 p-5">
-                <p className="mb-2 text-[14px] font-bold text-[#1f1f1f]">
-                  Informações Adicionais
+                <p className="mb-2 text-[14px] font-bold text-[#1f1f1f]">Informações Adicionais</p>
+                <p className="text-[14px] text-[#5b5b5b]">Cargo: {meQuery.data.role.name}</p>
+                <p className="text-[14px] text-[#5b5b5b]">
+                  Departamento: {meQuery.data.department.name}
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {meQuery.data.role.permissions.map((permission) => (
+                    <span
+                      key={permission.id}
+                      className="rounded-full bg-[#eef8ef] px-3 py-1 text-[12px] font-semibold text-[#246f2a]"
+                    >
+                      {permission.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
+              {errorMessage && <p className="mt-4 text-center text-[13px] text-[#d92d2d]">{errorMessage}</p>}
+
+              <div className="mt-6 flex gap-3">
                 {isEditing ? (
                   <>
-                    <label className="text-[13px] text-[#5b5b5b]">Matrícula</label>
-                    <input
-                      type="text"
-                      value={draft.matricula}
-                      onChange={(e) => updateDraft("matricula", e.target.value)}
-                      className="mb-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] text-[#1f1f1f] outline-none focus:border-[#2ea03b] focus:ring-1 focus:ring-[#2ea03b]"
-                    />
-                    <label className="text-[13px] text-[#5b5b5b]">
-                      Área/Departamento
-                    </label>
-                    <input
-                      type="text"
-                      value={draft.departamento}
-                      onChange={(e) => updateDraft("departamento", e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-[14px] text-[#1f1f1f] outline-none focus:border-[#2ea03b] focus:ring-1 focus:ring-[#2ea03b]"
-                    />
+                    <button
+                      type="button"
+                      onClick={cancelEditing}
+                      className="flex-1 rounded-full border border-[#2ea03b] bg-white py-3 text-sm font-bold uppercase tracking-wider text-[#2ea03b] transition hover:bg-gray-100"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveEditing}
+                      disabled={updateMeMutation.isPending}
+                      className="flex-1 rounded-full bg-[#2ea03b] py-3 text-sm font-bold uppercase tracking-wider text-white transition hover:bg-[#228d2e] disabled:cursor-not-allowed disabled:bg-[#95c899]"
+                    >
+                      {updateMeMutation.isPending ? "Salvando..." : "Salvar"}
+                    </button>
                   </>
                 ) : (
-                  <>
-                    <p className="text-[14px] text-[#5b5b5b]">
-                      Matrícula: {profile.matricula}
-                    </p>
-                    <p className="text-[14px] text-[#5b5b5b]">
-                      Área/Departamento: {profile.departamento}
-                    </p>
-                  </>
+                  <button
+                    type="button"
+                    onClick={startEditing}
+                    className="w-full rounded-full bg-[#2ea03b] py-3 text-sm font-bold uppercase tracking-wider text-white transition hover:bg-[#228d2e]"
+                  >
+                    Editar Perfil
+                  </button>
                 )}
               </div>
-
-              {/* Botões de ação em modo de edição */}
-              {isEditing && (
-                <div className="mt-6 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={cancelEditing}
-                    className="flex-1 rounded-full border border-[#2ea03b] bg-white py-3 text-sm font-bold uppercase tracking-wider text-[#2ea03b] transition hover:bg-gray-100"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveEditing}
-                    className="flex-1 rounded-full bg-[#2ea03b] py-3 text-sm font-bold uppercase tracking-wider text-white transition hover:bg-[#228d2e]"
-                  >
-                    Salvar
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </main>

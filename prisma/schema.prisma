@@ -13,9 +13,10 @@ datasource db {
 }
 
 model Role {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  users User[]
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  users       User[]
+  permissions Permission[]
 }
 
 model Department {
@@ -26,18 +27,20 @@ model Department {
 
 model User {
   id           Int          @id @default(autoincrement())
+  name         String       @default("Administrador")       
+  phone        String?
+  photo        Bytes?
+  photoMimeType String?
   email        String       @unique
   password     String
   roleId       Int
   role         Role         @relation(fields: [roleId], references: [id])
   departmentId Int
   department   Department   @relation(fields: [departmentId], references: [id])
-  permissions  Permission[]
 }
 
 model Permission {
   id    Int    @id @default(autoincrement())
   name  String @unique
-  users User[]
+  roles Role[]
 }
-

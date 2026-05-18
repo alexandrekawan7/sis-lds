@@ -3,17 +3,7 @@ import type { DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-
-// All fine-grained permissions used across the system.
-export type PermissionName =
-  | "users.manage"             // Admin: create / edit / delete users
-  | "print.request.create"     // Professor, Coordinator: submit a print request
-  | "print.request.view_own"   // Professor, Coordinator: view their own requests
-  | "print.request.view_all"   // Coordinator, Printer, Admin: view every request
-  | "print.request.approve"    // Coordinator: approve a pending request
-  | "print.request.reject"     // Coordinator: reject a pending request
-  | "print.execute"            // Printer: mark an approved request as printed
-  | "reports.view";          // Guest, Coordinator, Admin: view and export sheet-usage reports
+import type { PermissionName } from "@/lib/permissions";
 
 declare module "next-auth" {
   interface User {
@@ -32,14 +22,12 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
-  interface JWT {
-    id: string;
-    role: string;
-    department: string;
-    permissions: PermissionName[];
-  }
-}
+type TokenUserData = {
+  id: string;
+  role: string;
+  department: string;
+  permissions: PermissionName[];
+};
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -61,7 +49,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
-          include: { role: true, department: true, permissions: true },
+          include: {
+            role: {
+              include: { permissions: true },
+            },
+            department: true,
+          },
         });
 
         if (!user) return null;
@@ -75,29 +68,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         return {
           id: String(user.id),
+          name: user.name,
           email: user.email,
           role: user.role.name,
           department: user.department.name,
-          permissions: user.permissions.map((p) => p.name as PermissionName),
+          permissions: user.role.permissions.map((p) => p.name as PermissionName),
         };
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
+      const mutableToken = token as typeof token & Partial<TokenUserData>;
+
       if (user) {
-        token.id = user.id as string;
-        token.role = user.role;
-        token.department = user.department;
-        token.permissions = user.permissions;
+        mutableToken.id = user.id as string;
+        mutableToken.role = user.role;
+        mutableToken.department = user.department;
+        mutableToken.permissions = user.permissions;
       }
-      return token;
+
+      return mutableToken;
     },
     async session({ session, token }) {
-      session.user.id = token.id;
-      session.user.role = token.role;
-      session.user.department = token.department;
-      session.user.permissions = token.permissions;
+      const typedToken = token as typeof token & Partial<TokenUserData>;
+
+      session.user.id = typedToken.id ?? "";
+      session.user.role = typedToken.role ?? "";
+      session.user.department = typedToken.department ?? "";
+      session.user.permissions = typedToken.permissions ?? [];
+
       return session;
     },
   },

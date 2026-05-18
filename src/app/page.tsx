@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function Login() {
   const router = useRouter();
@@ -10,12 +11,13 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
     <div className="flex h-screen w-screen flex-col md:flex-row">
       {/* LADO ESQUERDO */}
       <div className="flex w-full items-center justify-center bg-[#00843D] px-4 py-10 md:w-1/2 md:py-0">
-        <div className="w-full max-w-[400px] overflow-hidden rounded-2xl bg-gray-100 p-8 shadow-lg">
+        <div className="w-full max-w-100 overflow-hidden rounded-2xl bg-gray-100 p-8 shadow-lg">
           <h1 className="mb-6 text-center text-4xl font-black text-black">
             LOGO
           </h1>
@@ -26,14 +28,31 @@ export default function Login() {
 
           <form
             className="space-y-5"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
+
               if (!email.trim() || !senha.trim()) {
                 setErrorMsg("Dados não preenchidos");
                 return;
               }
+
+              setIsSubmitting(true);
               setErrorMsg("");
-              router.push("/home/users");
+
+              const result = await signIn("credentials", {
+                email,
+                password: senha,
+                redirect: false,
+              });
+
+              if (!result || result.error) {
+                setErrorMsg("Email ou senha inválidos");
+                setIsSubmitting(false);
+                return;
+              }
+
+              router.push("/home");
+              router.refresh();
             }}
           >
             <div>
@@ -63,7 +82,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-[38px] text-gray-400 hover:text-gray-600"
+                className="absolute right-4 top-9.5 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -92,9 +111,10 @@ export default function Login() {
 
             <button
               type="submit"
+              disabled={isSubmitting}
               className="w-full rounded-full bg-[#219EBC] py-4 text-lg font-bold uppercase tracking-wider text-white transition hover:bg-[#35a89f]"
             >
-              ENTRAR
+              {isSubmitting ? "ENTRANDO..." : "ENTRAR"}
             </button>
 
             {errorMsg && (
@@ -117,7 +137,7 @@ export default function Login() {
           priority
         />
         {/* Overlay verde com gradiente */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#00843D] via-[#00843D]/20 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-r from-[#00843D] via-[#00843D]/20 to-transparent" />
       </div>
     </div>
   );

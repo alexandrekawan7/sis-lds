@@ -1,75 +1,138 @@
 import "dotenv/config";
-import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import { PrismaPg } from "@prisma/adapter-pg";
+
+import { PrismaClient } from "../src/generated/prisma/client";
+import { MANAGE_USERS_PERMISSION, SYSTEM_PERMISSIONS } from "../src/lib/permissions";
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
-})
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
-// Mirrors the PermissionName type in src/auth.ts.
-// Each entry: [name, description, roles that receive it by default]
+const PERMISSION_LABELS = {
+  manageUsers: MANAGE_USERS_PERMISSION,
+  createPrintRequest: "Criar solicitacoes de impressao",
+  viewOwnPrintRequests: "Visualizar as proprias solicitacoes de impressao",
+  viewAllPrintRequests: "Visualizar todas as solicitacoes de impressao",
+  approvePrintRequests: "Aprovar solicitacoes de impressao",
+  rejectPrintRequests: "Rejeitar solicitacoes de impressao",
+  executePrinting: "Executar impressao de documentos",
+  viewReports: "Visualizar e exportar relatorios de folhas",
+} as const;
+
 const PERMISSIONS: Array<{ name: string; description: string }> = [
-  // ── User management ────────────────────────────────────────────────
-  { name: "users.manage",           description: "Create, edit and delete users (Admin)" },
-
-  // ── Print requests ─────────────────────────────────────────────────
-  { name: "print.request.create",   description: "Submit a new print request (Professor, Coordinator)" },
-  { name: "print.request.view_own", description: "View own print requests (Professor, Coordinator)" },
-  { name: "print.request.view_all", description: "View all print requests (Coordinator, Printer, Admin)" },
-  { name: "print.request.approve",  description: "Approve a pending print request (Coordinator)" },
-  { name: "print.request.reject",   description: "Reject a pending print request (Coordinator)" },
-
-  // ── Printing execution ─────────────────────────────────────────────
-  { name: "print.execute",          description: "Mark an approved request as printed (Printer)" },
-
-  // ── Reports ────────────────────────────────────────────────────────
-  { name: "reports.view",           description: "View and export sheet-usage reports (Guest, Coordinator, Admin)" },
+  {
+    name: PERMISSION_LABELS.manageUsers,
+    description: "Permite criar, editar e excluir usuarios do sistema.",
+  },
+  {
+    name: PERMISSION_LABELS.createPrintRequest,
+    description: "Permite registrar novas solicitacoes de impressao.",
+  },
+  {
+    name: PERMISSION_LABELS.viewOwnPrintRequests,
+    description: "Permite visualizar apenas as solicitacoes criadas pelo proprio usuario.",
+  },
+  {
+    name: PERMISSION_LABELS.viewAllPrintRequests,
+    description: "Permite visualizar todas as solicitacoes de impressao da instituicao.",
+  },
+  {
+    name: PERMISSION_LABELS.approvePrintRequests,
+    description: "Permite aprovar solicitacoes de impressao pendentes.",
+  },
+  {
+    name: PERMISSION_LABELS.rejectPrintRequests,
+    description: "Permite rejeitar solicitacoes de impressao pendentes.",
+  },
+  {
+    name: PERMISSION_LABELS.executePrinting,
+    description: "Permite executar a impressao fisica dos documentos aprovados.",
+  },
+  {
+    name: PERMISSION_LABELS.viewReports,
+    description: "Permite visualizar e exportar relatorios de uso de folhas.",
+  },
 ];
 
-const ROLES = [
-  process.env.ADMIN_ROLE,
-  "Professor",
-];
+type RoleTemplate = {
+  name: string;
+  permissionNames: string[];
+};
 
-const DEPARTMENTS = [
-  process.env.ADMIN_DEPARTMENT,
-  "Matemática",
-  "Física",
-  "Engenharia Elétrica",
-  "Engenharia Mecânica",
-  "Sistemas de Informação"
-];
+function mergeRoleTemplates(templates: RoleTemplate[]) {
+  const byRole = new Map<string, Set<string>>();
+
+  for (const template of templates) {
+    if (!template.name?.trim()) continue;
+
+    const roleName = template.name.trim();
+    const current = byRole.get(roleName) ?? new Set<string>();
+
+    for (const permissionName of template.permissionNames) {
+      current.add(permissionName);
+    }
+
+    byRole.set(roleName, current);
+  }
+
+  return [...byRole.entries()].map(([name, permissions]) => ({
+    name,
+    permissionNames: [...permissions],
+  }));
+}
 
 async function main(): Promise<void> {
-  // Upsert roles.
-  const roles = await Promise.all(
-    ROLES.map((name) =>
+  const adminRole = process.env.ADMIN_ROLE?.trim() || "Administrador";
+  const adminDepartment = process.env.ADMIN_DEPARTMENT?.trim() || "Administracao";
 
-      prisma.role.upsert({
-        where: { name },
-        update: {},
-        create: { name: name as string },
-      })
-    )
-  );
+  const roleTemplates = mergeRoleTemplates([
+    {
+      name: adminRole,
+      permissionNames: [...SYSTEM_PERMISSIONS],
+    },
+    {
+      name: "Professor",
+      permissionNames: [
+        PERMISSION_LABELS.createPrintRequest,
+        PERMISSION_LABELS.viewOwnPrintRequests,
+      ],
+    },
+    {
+      name: "Coordenador",
+      permissionNames: [
+        PERMISSION_LABELS.createPrintRequest,
+        PERMISSION_LABELS.viewOwnPrintRequests,
+        PERMISSION_LABELS.viewAllPrintRequests,
+        PERMISSION_LABELS.approvePrintRequests,
+        PERMISSION_LABELS.rejectPrintRequests,
+        PERMISSION_LABELS.viewReports,
+      ],
+    },
+    {
+      name: "Impressor",
+      permissionNames: [
+        PERMISSION_LABELS.viewAllPrintRequests,
+        PERMISSION_LABELS.executePrinting,
+      ],
+    },
+    {
+      name: "Convidado",
+      permissionNames: [PERMISSION_LABELS.viewReports],
+    },
+  ]);
 
-  const byRole = Object.fromEntries(roles.map((r) => [r.name, r]));
+  const departmentNames = [
+    adminDepartment,
+    "Matematica",
+    "Fisica",
+    "Engenharia Eletrica",
+    "Engenharia Mecanica",
+    "Sistemas de Informacao",
+  ];
 
-  // Upsert departments.
-  const departments = await Promise.all(
-    DEPARTMENTS.map((name) =>
-      prisma.department.upsert({
-        where: { name },
-        update: {},
-        create: { name: name as string },
-      })
-    )
-  );
+  const uniqueDepartmentNames = [...new Set(departmentNames.filter(Boolean))];
 
-  const byDept = Object.fromEntries(departments.map((d) => [d.name, d]));
-
-  // Upsert every permission so re-running the seed is safe.
   const permissions = await Promise.all(
     PERMISSIONS.map(({ name }) =>
       prisma.permission.upsert({
@@ -80,40 +143,104 @@ async function main(): Promise<void> {
     )
   );
 
-  const byPerm = Object.fromEntries(permissions.map((p) => [p.name, p]));
+  const byPermissionName = Object.fromEntries(permissions.map((permission) => [permission.name, permission]));
 
-  const adminEmail = process.env.ADMIN_EMAIL!;
-  const adminPassword = process.env.ADMIN_PASSWORD!;
+  const roles = await Promise.all(
+    roleTemplates.map((template) =>
+      prisma.role.upsert({
+        where: { name: template.name },
+        update: {},
+        create: { name: template.name },
+      })
+    )
+  );
+
+  for (const role of roles) {
+    const template = roleTemplates.find((item) => item.name === role.name);
+    const permissionIds = (template?.permissionNames ?? [])
+      .map((permissionName) => byPermissionName[permissionName]?.id)
+      .filter((id): id is number => Boolean(id));
+
+    await prisma.role.update({
+      where: { id: role.id },
+      data: {
+        permissions: {
+          set: permissionIds.map((id) => ({ id })),
+        },
+      },
+    });
+  }
+
+  const departments = await Promise.all(
+    uniqueDepartmentNames.map((name) =>
+      prisma.department.upsert({
+        where: { name },
+        update: {},
+        create: { name },
+      })
+    )
+  );
+
+  const byRoleName = Object.fromEntries(roles.map((role) => [role.name, role]));
+  const byDepartmentName = Object.fromEntries(
+    departments.map((department) => [department.name, department])
+  );
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error("ADMIN_EMAIL e ADMIN_PASSWORD precisam estar definidos no .env");
+  }
+
   const hashedPassword = await bcrypt.hash(adminPassword, 12);
 
-  // Admin receives: users.manage + read-all (helpful for support)
   await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      name: "Administrador",
+      phone: null,
+      password: hashedPassword,
+      role: {
+        connect: { id: byRoleName[adminRole].id },
+      },
+      department: {
+        connect: { id: byDepartmentName[adminDepartment].id },
+      },
+    },
     create: {
+      name: "Administrador",
+      phone: null,
       email: adminEmail,
       password: hashedPassword,
-      role: { connect: { id: byRole[process.env.ADMIN_ROLE as string].id } },
-      department: { connect: { id: byDept[process.env.ADMIN_DEPARTMENT as string].id } },
-      permissions: {
-        connect: [
-          { id: byPerm["users.manage"].id },
-          { id: byPerm["print.request.view_all"].id },
-        ],
+      role: {
+        connect: { id: byRoleName[adminRole].id },
+      },
+      department: {
+        connect: { id: byDepartmentName[adminDepartment].id },
       },
     },
   });
 
-  console.log("Roles seeded:", ROLES.join(", "));
-  console.log("Departments seeded:", DEPARTMENTS.join(", "));
-  console.log("Permissions seeded:");
-  PERMISSIONS.forEach(({ name, description }) =>
-    console.log(`  • ${name.padEnd(30)} — ${description}`)
-  );
-  console.log(`\nAdmin user seeded: ${adminEmail}`);
+  console.log("Permissoes cadastradas:");
+  PERMISSIONS.forEach(({ name, description }) => {
+    console.log(`  - ${name}: ${description}`);
+  });
+
+  console.log("\nCargos cadastrados:");
+  roleTemplates.forEach((role) => {
+    console.log(`  - ${role.name} (${role.permissionNames.length} permissao(oes))`);
+  });
+
+  console.log("\nDepartamentos cadastrados:", uniqueDepartmentNames.join(", "));
+  console.log(`Usuario administrador pronto: ${adminEmail}`);
 }
 
 main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
-
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
