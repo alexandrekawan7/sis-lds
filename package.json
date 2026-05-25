@@ -7,8 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "test": "npm run test:regression",
+    "test:auth": "tsx scripts/test-auth-login.ts",
     "test:documents": "tsx scripts/test-document-process.ts",
-    "test:regression": "npm run test:documents",
+    "test:regression": "npm run test:documents && npm run test:auth",
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx prisma/seed.ts"
