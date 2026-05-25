@@ -11,47 +11,47 @@ const prisma = new PrismaClient({
 
 const PERMISSION_LABELS = {
   manageUsers: MANAGE_USERS_PERMISSION,
-  createPrintRequest: "Criar solicitacoes de impressao",
-  viewOwnPrintRequests: "Visualizar as proprias solicitacoes de impressao",
+  createPrintRequest: "Criar solicitações de impressão",
+  viewOwnPrintRequests: "Visualizar as próprias solicitações de impressão",
   viewAllPrintRequests: "Visualizar todas as solicitacoes de impressao",
   approvePrintRequests: "Aprovar solicitacoes de impressao",
   rejectPrintRequests: "Rejeitar solicitacoes de impressao",
-  executePrinting: "Executar impressao de documentos",
-  viewReports: "Visualizar e exportar relatorios de folhas",
+  executePrinting: "Executar impressão de documentos",
+  viewReports: "Visualizar e exportar relatórios de folhas",
 } as const;
 
 const PERMISSIONS: Array<{ name: string; description: string }> = [
   {
     name: PERMISSION_LABELS.manageUsers,
-    description: "Permite criar, editar e excluir usuarios do sistema.",
+    description: "Permite criar, editar e excluir usuários do sistema.",
   },
   {
     name: PERMISSION_LABELS.createPrintRequest,
-    description: "Permite registrar novas solicitacoes de impressao.",
+    description: "Permite registrar novas solicitações de impressão.",
   },
   {
     name: PERMISSION_LABELS.viewOwnPrintRequests,
-    description: "Permite visualizar apenas as solicitacoes criadas pelo proprio usuario.",
+    description: "Permite visualizar apenas as solicitações criadas pelo próprio usuário.",
   },
   {
     name: PERMISSION_LABELS.viewAllPrintRequests,
-    description: "Permite visualizar todas as solicitacoes de impressao da instituicao.",
+    description: "Permite visualizar todas as solicitações de impressão da instituição.",
   },
   {
     name: PERMISSION_LABELS.approvePrintRequests,
-    description: "Permite aprovar solicitacoes de impressao pendentes.",
+    description: "Permite aprovar solicitações de impressão pendentes.",
   },
   {
     name: PERMISSION_LABELS.rejectPrintRequests,
-    description: "Permite rejeitar solicitacoes de impressao pendentes.",
+    description: "Permite rejeitar solicitações de impressão pendentes.",
   },
   {
     name: PERMISSION_LABELS.executePrinting,
-    description: "Permite executar a impressao fisica dos documentos aprovados.",
+    description: "Permite executar a impressão física dos documentos aprovados.",
   },
   {
     name: PERMISSION_LABELS.viewReports,
-    description: "Permite visualizar e exportar relatorios de uso de folhas.",
+    description: "Permite visualizar e exportar relatórios de uso de folhas.",
   },
 ];
 
@@ -124,11 +124,11 @@ async function main(): Promise<void> {
 
   const departmentNames = [
     adminDepartment,
-    "Matematica",
-    "Fisica",
-    "Engenharia Eletrica",
-    "Engenharia Mecanica",
-    "Sistemas de Informacao",
+    "Matemática",
+    "Física",
+    "Engenharia Elétrica",
+    "Engenharia Mecânica",
+    "Sistemas de Informação",
   ];
 
   const uniqueDepartmentNames = [...new Set(departmentNames.filter(Boolean))];
@@ -222,18 +222,18 @@ async function main(): Promise<void> {
     },
   });
 
-  console.log("Permissoes cadastradas:");
+  console.log("Permissões cadastradas:");
   PERMISSIONS.forEach(({ name, description }) => {
     console.log(`  - ${name}: ${description}`);
   });
 
   console.log("\nCargos cadastrados:");
   roleTemplates.forEach((role) => {
-    console.log(`  - ${role.name} (${role.permissionNames.length} permissao(oes))`);
+    console.log(`  - ${role.name} (${role.permissionNames.length} permissão(ões))`);
   });
 
   console.log("\nDepartamentos cadastrados:", uniqueDepartmentNames.join(", "));
-  console.log(`Usuario administrador pronto: ${adminEmail}`);
+  console.log(`Usuário administrador pronto: ${adminEmail}`);
 }
 
 main()
