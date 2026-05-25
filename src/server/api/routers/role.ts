@@ -75,13 +75,13 @@ export const roleRouter = createTRPCRouter({
       });
 
       if (!role) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Cargo nao encontrado." });
+        throw new TRPCError({ code: "NOT_FOUND", message: "Cargo não encontrado." });
       }
 
       if (role._count.users > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Nao e possivel excluir um cargo que possui usuarios vinculados.",
+          message: "Não é possível excluir um cargo que possui usuários vinculados.",
         });
       }
 
