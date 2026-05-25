@@ -84,7 +84,7 @@ function mergeRoleTemplates(templates: RoleTemplate[]) {
 
 async function main(): Promise<void> {
   const adminRole = process.env.ADMIN_ROLE?.trim() || "Administrador";
-  const adminDepartment = process.env.ADMIN_DEPARTMENT?.trim() || "Administracao";
+  const adminDepartment = process.env.ADMIN_DEPARTMENT?.trim() || "Administração";
 
   const roleTemplates = mergeRoleTemplates([
     {
@@ -229,7 +229,7 @@ async function main(): Promise<void> {
 
   console.log("\nCargos cadastrados:");
   roleTemplates.forEach((role) => {
-    console.log(`  - ${role.name} (${role.permissionNames.length} permissão(ões))`);
+    console.log(`  - ${role.name} (${role.permissionNames.length} permissões)`);
   });
 
   console.log("\nDepartamentos cadastrados:", uniqueDepartmentNames.join(", "));
