@@ -27,7 +27,7 @@ model Department {
 
 model User {
   id           Int          @id @default(autoincrement())
-  name         String       @default("Administrador")       
+  name         String       @default("Administrador")
   phone        String?
   photo        Bytes?
   photoMimeType String?
@@ -37,6 +37,38 @@ model User {
   role         Role         @relation(fields: [roleId], references: [id])
   departmentId Int
   department   Department   @relation(fields: [departmentId], references: [id])
+  solicitacoes Solicitacao[]
+}
+
+enum SolicitacaoStatus {
+  AGUARDANDO
+  APROVADA
+  REJEITADA
+  CONCLUIDA
+  CANCELADA
+}
+
+model Solicitacao {
+  id              Int               @id @default(autoincrement())
+  // Etapa 1 - Material
+  tipoPapel       String
+  intuito         String
+  copias          Int
+  // Etapa 2 - Configuracoes da impressao
+  tamanho         String
+  orientacao      String
+  modelo          String
+  cor             String
+  acabamento      String
+  // Etapa 3 - Anexo e retirada
+  documento       String?
+  dataRetirada    String
+  horarioRetirada String
+  status          SolicitacaoStatus @default(AGUARDANDO)
+  solicitanteId   Int
+  solicitante     User              @relation(fields: [solicitanteId], references: [id], onDelete: Cascade)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 model Permission {

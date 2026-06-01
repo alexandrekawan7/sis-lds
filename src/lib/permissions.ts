@@ -12,3 +12,15 @@ export const SYSTEM_PERMISSIONS = [
 ] as const;
 
 export type PermissionName = (typeof SYSTEM_PERMISSIONS)[number];
+
+/**
+ * Cargos que podem acessar o menu/página de Solicitações de impressão.
+ * O menu e a rota só ficam disponíveis para estes cargos.
+ */
+export const SOLICITACAO_ROLES = ["Professor", "Convidado", "Coordenador"] as const;
+
+export type SolicitacaoRole = (typeof SOLICITACAO_ROLES)[number];
+
+export function canAccessSolicitacoes(roleName: string | null | undefined): boolean {
+  return SOLICITACAO_ROLES.includes((roleName ?? "") as SolicitacaoRole);
+}

@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { MANAGE_USERS_PERMISSION } from "@/lib/permissions";
+import { canAccessSolicitacoes, MANAGE_USERS_PERMISSION } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { initTRPC, TRPCError } from "@trpc/server";
 
@@ -32,7 +32,16 @@ const canManageUsers = t.middleware(({ ctx, next }) => {
   return next({ ctx });
 });
 
+const canAccessSolicitacao = t.middleware(({ ctx, next }) => {
+  if (!canAccessSolicitacoes(ctx.session?.user?.role)) {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+
+  return next({ ctx });
+});
+
 export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 export const protectedProcedure = t.procedure.use(isAuthed);
 export const usersManageProcedure = protectedProcedure.use(canManageUsers);
+export const solicitacaoProcedure = protectedProcedure.use(canAccessSolicitacao);
