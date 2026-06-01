@@ -46,6 +46,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorize: validateLoginCredentials,
     }),
   ],
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60,  
+    updateAge: 60 * 60,    
+  },
   callbacks: {
     async jwt({ token, user }) {
       const mutableToken = token as typeof token & Partial<TokenUserData>;
@@ -55,6 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         mutableToken.role = user.role;
         mutableToken.department = user.department;
         mutableToken.permissions = user.permissions;
+        mutableToken.iat = Math.floor(Date.now() / 1000);
       }
 
       return mutableToken;
