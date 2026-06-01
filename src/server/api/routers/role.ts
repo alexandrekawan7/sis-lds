@@ -81,7 +81,7 @@ export const roleRouter = createTRPCRouter({
       if (role._count.users > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Não é possível excluir um cargo que possui usuários vinculados.",
+          message: "Não é possivel excluir um cargo que possui usuários vinculados.",
         });
       }
 

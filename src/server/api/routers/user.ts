@@ -162,7 +162,7 @@ export const userRouter = createTRPCRouter({
       if (department._count.users > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Não é possível excluir um departamento com usuários vinculados.",
+          message: "Não é possivel excluir um departamento com usuários vinculados.",
         });
       }
 
