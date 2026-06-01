@@ -26,19 +26,19 @@ model Department {
 }
 
 model User {
-  id           Int          @id @default(autoincrement())
-  name         String       @default("Administrador")
-  phone        String?
-  photo        Bytes?
+  id            Int           @id @default(autoincrement())
+  name          String        @default("Administrador")
+  phone         String?
+  photo         Bytes?
   photoMimeType String?
-  email        String       @unique
-  password     String
-  roleId       Int
-  role         Role         @relation(fields: [roleId], references: [id])
-  departmentId Int
-  department   Department   @relation(fields: [departmentId], references: [id])
-  documents    Document[]      @relation("UserDocuments")
-  solicitacoes Solicitacao[]
+  email         String        @unique
+  password      String
+  roleId        Int
+  role          Role          @relation(fields: [roleId], references: [id])
+  departmentId  Int
+  department    Department    @relation(fields: [departmentId], references: [id])
+  documents     Document[]    @relation("UserDocuments")
+  solicitacoes  Solicitacao[]
 }
 
 enum SolicitacaoStatus {
@@ -63,6 +63,8 @@ model Solicitacao {
   acabamento      String
   // Etapa 3 - Anexo e retirada
   documento       String?
+  documentId      String?
+  document        Document?         @relation("DocumentSolicitacao", fields: [documentId], references: [id], onDelete: SetNull)
   dataRetirada    String
   horarioRetirada String
   status          SolicitacaoStatus @default(AGUARDANDO)
@@ -79,16 +81,15 @@ model Permission {
 }
 
 model Document {
-  id              String          @id @default(uuid())
-  filename        String
-  mimeType        String          // "application/pdf", "image/jpeg", "image/png"
-  fileSize        Int             // tamanho em bytes
-  data            Bytes           // conteúdo binário do arquivo
-  metadata        Json            // { pages?: number, width?: number, height?: number, dpi?: number }
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  createdById     Int
-  createdBy       User            @relation("UserDocuments", fields: [createdById], references: [id], onDelete: Cascade)
-  printRequests   PrintRequest[]  @relation("DocumentRequests")
+  id           String        @id @default(uuid())
+  filename     String
+  mimeType     String // "application/pdf", "image/jpeg", "image/png"
+  fileSize     Int // tamanho em bytes
+  data         Bytes // conteúdo binário do arquivo
+  metadata     Json // { pages?: number, width?: number, height?: number, dpi?: number }
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  Int
+  createdBy    User          @relation("UserDocuments", fields: [createdById], references: [id], onDelete: Cascade)
+  solicitacoes Solicitacao[] @relation("DocumentSolicitacao")
 }
-
