@@ -18,7 +18,7 @@ const photoDataUrlInput = z
 
 const createUserInput = z.object({
   name: z.string().trim().min(3, "Informe o nome completo"),
-  email: z.string().trim().email("Email invalido"),
+  email: z.string().trim().email("Email inválido"),
   phone: z.string().trim().max(30).optional().nullable(),
   roleId: z.number().int().positive(),
   departmentId: z.number().int().positive(),
@@ -29,7 +29,7 @@ const createUserInput = z.object({
 const updateUserInput = z.object({
   id: z.number().int().positive(),
   name: z.string().trim().min(3, "Informe o nome completo"),
-  email: z.string().trim().email("Email invalido"),
+  email: z.string().trim().email("Email inválido"),
   phone: z.string().trim().max(30).optional().nullable(),
   roleId: z.number().int().positive(),
   departmentId: z.number().int().positive(),
@@ -58,7 +58,7 @@ function parsePhotoDataUrl(photoDataUrl: string) {
   if (!match) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Formato de imagem invalido. Use JPG, PNG, WEBP ou GIF.",
+      message: "Formato de imagem inválido. Use JPG, PNG, WEBP ou GIF.",
     });
   }
 
@@ -67,14 +67,14 @@ function parsePhotoDataUrl(photoDataUrl: string) {
   if (!photo.length) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Imagem invalida.",
+      message: "Imagem inválida.",
     });
   }
 
   if (photo.length > MAX_PHOTO_SIZE_BYTES) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "A imagem deve ter no maximo 512KB.",
+      message: "A imagem deve ter no máximo 512KB.",
     });
   }
 
@@ -155,14 +155,14 @@ export const userRouter = createTRPCRouter({
       if (!department) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Departamento nao encontrado.",
+          message: "Departamento não encontrado.",
         });
       }
 
       if (department._count.users > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Nao e possivel excluir um departamento com usuarios vinculados.",
+          message: "Não é possivel excluir um departamento com usuários vinculados.",
         });
       }
 
@@ -268,7 +268,7 @@ export const userRouter = createTRPCRouter({
       if (!defaultResetPassword || defaultResetPassword.length < 6) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "DEFAULT_RESET_PASSWORD nao esta configurada corretamente.",
+          message: "DEFAULT_RESET_PASSWORD não está configurada corretamente.",
         });
       }
 

@@ -128,7 +128,7 @@ export const documentRouter = createTRPCRouter({
       try {
         const userId = Number(ctx.session?.user?.id);
         const canViewAll = ctx.session?.user?.permissions?.includes(
-          "Visualizar todas as solicitacoes de impressao"
+          "Visualizar todas as solicitações de impressão"
         );
 
         const whereClause = canViewAll ? {} : { createdById: userId };
@@ -246,10 +246,10 @@ export const documentRouter = createTRPCRouter({
       try {
         const userId = Number(ctx.session?.user?.id);
         const canViewAll = ctx.session?.user?.permissions?.includes(
-          "Visualizar todas as solicitacoes de impressao"
+          "Visualizar todas as solicitações de impressão"
         );
         const canViewOwn = ctx.session?.user?.permissions?.includes(
-          "Visualizar as proprias solicitacoes de impressao"
+          "Visualizar as próprias solicitações de impressão"
         );
 
         if (!canViewAll && !canViewOwn) {
@@ -339,7 +339,7 @@ export const documentRouter = createTRPCRouter({
       try {
         const userId = Number(ctx.session?.user?.id);
         const canViewAll = ctx.session?.user?.permissions?.includes(
-          "Visualizar todas as solicitacoes de impressao"
+          "Visualizar todas as solicitações de impressão"
         );
 
         const printRequest = await ctx.prisma.printRequest.findUnique({
@@ -419,10 +419,10 @@ export const documentRouter = createTRPCRouter({
           "APPROVED" | "REJECTED" | "PRINTED" | "FAILED",
           PermissionName
         > = {
-          APPROVED: "Aprovar solicitacoes de impressao",
-          REJECTED: "Rejeitar solicitacoes de impressao",
-          PRINTED: "Executar impressao de documentos",
-          FAILED: "Executar impressao de documentos",
+          APPROVED: "Aprovar solicitações de impressão",
+          REJECTED: "Rejeitar solicitações de impressão",
+          PRINTED: "Executar impressão de documentos",
+          FAILED: "Executar impressão de documentos",
         };
 
         const requiredPermission = statusPermissionMap[input.newStatus];
