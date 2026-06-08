@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-import { canAccessSolicitacoes, MANAGE_USERS_PERMISSION } from "@/lib/permissions";
+import { canAccessImpressao, canAccessSolicitacoes, MANAGE_USERS_PERMISSION } from "@/lib/permissions";
 import { useTRPC } from "@/trpc/react";
 
 type ProfileDraft = {
@@ -312,6 +312,37 @@ export default function PerfilPage() {
                   }`}
                 >
                   Solicitações
+                </span>
+              </button>
+            )}
+
+            {canAccessImpressao(
+              meQuery.data?.role.permissions.map((p) => p.name) ?? null
+            ) && (
+              <button
+                type="button"
+                onClick={() => router.push("/impressao")}
+                className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
+                  isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"
+                }`}
+              >
+                <svg
+                  className="h-7 w-7"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path d="M7 3h8l4 4v14H5V3h2z" />
+                  <path d="M15 3v5h5" />
+                  <path d="M8 11h8M8 15h8M8 7h3" />
+                </svg>
+                <span
+                  className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
+                    isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
+                  }`}
+                >
+                  Impressões
                 </span>
               </button>
             )}

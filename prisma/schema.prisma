@@ -68,6 +68,7 @@ model Solicitacao {
   dataRetirada    String
   horarioRetirada String
   status          SolicitacaoStatus @default(AGUARDANDO)
+  previousStatus  SolicitacaoStatus?
   solicitanteId   Int
   solicitante     User              @relation(fields: [solicitanteId], references: [id], onDelete: Cascade)
   createdAt       DateTime          @default(now())

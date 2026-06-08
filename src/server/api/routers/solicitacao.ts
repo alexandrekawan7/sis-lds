@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { createTRPCRouter, solicitacaoProcedure } from "@/server/api/trpc";
+import { createTRPCRouter, impressaoProcedure, solicitacaoProcedure } from "@/server/api/trpc";
 
 const solicitacaoFields = {
   // Etapa 1 - Material
@@ -142,6 +142,170 @@ export const solicitacaoRouter = createTRPCRouter({
       }
 
       await ctx.prisma.solicitacao.delete({ where: { id: input.id } });
+
+      return { success: true };
+    }),
+
+  // ── Procedures para o Impressor ──────────────────────────────────
+
+  todas: impressaoProcedure
+    .input(z.object({ status: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const where: Record<string, unknown> = {};
+      if (input?.status) where.status = input.status;
+
+      const solicitacoes = await ctx.prisma.solicitacao.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          solicitante: {
+            include: { role: true, department: true },
+          },
+          document: true,
+        },
+      });
+
+      return solicitacoes.map((s) => ({
+        id: s.id,
+        tipoPapel: s.tipoPapel,
+        intuito: s.intuito,
+        copias: s.copias,
+        tamanho: s.tamanho,
+        orientacao: s.orientacao,
+        modelo: s.modelo,
+        cor: s.cor,
+        acabamento: s.acabamento,
+        documento: s.documento,
+        dataRetirada: s.dataRetirada,
+        horarioRetirada: s.horarioRetirada,
+        status: s.status,
+        solicitante: {
+          nome: s.solicitante.name,
+          cargo: s.solicitante.role.name,
+          departamento: s.solicitante.department.name,
+        },
+      }));
+    }),
+
+  detalhes: impressaoProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      const solicitacao = await ctx.prisma.solicitacao.findUnique({
+        where: { id: input.id },
+        include: {
+          solicitante: { include: { role: true, department: true } },
+          document: true,
+        },
+      });
+
+      if (!solicitacao) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      }
+
+      return {
+        id: solicitacao.id,
+        tipoPapel: solicitacao.tipoPapel,
+        intuito: solicitacao.intuito,
+        copias: solicitacao.copias,
+        tamanho: solicitacao.tamanho,
+        orientacao: solicitacao.orientacao,
+        modelo: solicitacao.modelo,
+        cor: solicitacao.cor,
+        acabamento: solicitacao.acabamento,
+        documento: solicitacao.documento,
+        documentId: solicitacao.documentId,
+        document: solicitacao.document,
+        dataRetirada: solicitacao.dataRetirada,
+        horarioRetirada: solicitacao.horarioRetirada,
+        status: solicitacao.status,
+        solicitante: {
+          nome: solicitacao.solicitante.name,
+          cargo: solicitacao.solicitante.role.name,
+          departamento: solicitacao.solicitante.department.name,
+        },
+      };
+    }),
+
+  concluir: impressaoProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      const solicitacao = await ctx.prisma.solicitacao.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!solicitacao) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      }
+
+      await ctx.prisma.solicitacao.update({
+        where: { id: input.id },
+        data: { status: "CONCLUIDA" },
+      });
+
+      return { success: true };
+    }),
+
+  rejeitar: impressaoProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      const solicitacao = await ctx.prisma.solicitacao.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!solicitacao) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      }
+
+      await ctx.prisma.solicitacao.update({
+        where: { id: input.id },
+        data: { status: "REJEITADA" },
+      });
+
+      return { success: true };
+    }),
+
+  arquivar: impressaoProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      const solicitacao = await ctx.prisma.solicitacao.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!solicitacao) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      }
+
+      await ctx.prisma.solicitacao.update({
+        where: { id: input.id },
+        data: {
+          status: "CANCELADA",
+          previousStatus: solicitacao.status,
+        },
+      });
+
+      return { success: true };
+    }),
+
+  desarquivar: impressaoProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      const solicitacao = await ctx.prisma.solicitacao.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!solicitacao) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
+      }
+
+      const previousStatus = solicitacao.previousStatus ?? "AGUARDANDO";
+
+      await ctx.prisma.solicitacao.update({
+        where: { id: input.id },
+        data: {
+          status: previousStatus,
+          previousStatus: null,
+        },
+      });
 
       return { success: true };
     }),

@@ -24,3 +24,13 @@ export type SolicitacaoRole = (typeof SOLICITACAO_ROLES)[number];
 export function canAccessSolicitacoes(roleName: string | null | undefined): boolean {
   return SOLICITACAO_ROLES.includes((roleName ?? "") as SolicitacaoRole);
 }
+
+export const IMPRESSAO_PERMISSIONS = [
+  "Visualizar todas as solicitações de impressão",
+  "Executar impressão de documentos",
+] as const;
+
+export function canAccessImpressao(permissions: readonly string[] | null | undefined): boolean {
+  if (!permissions) return false;
+  return IMPRESSAO_PERMISSIONS.some((p) => permissions.includes(p));
+}
