@@ -9,9 +9,6 @@ import {
   uploadDocumentSchema,
   listDocumentsSchema,
   getDocumentSchema,
-  createPrintRequestSchema,
-  listPrintRequestsSchema,
-  updatePrintRequestStatusSchema,
 } from "@/server/api/schemas/document";
 import {
   processDocument,
