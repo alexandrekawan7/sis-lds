@@ -16,7 +16,7 @@ import {
 import {
   bufferToBase64,
 } from "@/server/api/services/documentConverter";
-import { PermissionName } from "@/lib/permissions";
+import { hasPermission, PermissionName } from "@/lib/permissions";
 
 export const documentRouter = createTRPCRouter({
   /**
@@ -124,7 +124,8 @@ export const documentRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       try {
         const userId = Number(ctx.session?.user?.id);
-        const canViewAll = ctx.session?.user?.permissions?.includes(
+        const canViewAll = hasPermission(
+          ctx.session?.user?.permissions,
           "Visualizar todas as solicitações de impressão"
         );
 

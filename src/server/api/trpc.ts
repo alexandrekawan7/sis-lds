@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { canAccessSolicitacoes, MANAGE_USERS_PERMISSION } from "@/lib/permissions";
+import { canAccessSolicitacoes, hasPermission, MANAGE_USERS_PERMISSION } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { initTRPC, TRPCError } from "@trpc/server";
 
@@ -25,7 +25,7 @@ const isAuthed = t.middleware(({ ctx, next }) => {
 });
 
 const canManageUsers = t.middleware(({ ctx, next }) => {
-  if (!ctx.session?.user?.permissions?.includes(MANAGE_USERS_PERMISSION)) {
+  if (!hasPermission(ctx.session?.user?.permissions, MANAGE_USERS_PERMISSION)) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
 

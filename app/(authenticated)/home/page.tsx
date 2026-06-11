@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-import { MANAGE_USERS_PERMISSION } from "@/lib/permissions";
+import { hasPermission, MANAGE_USERS_PERMISSION } from "@/lib/permissions";
 import { useTRPC } from "@/trpc/react";
 
 export default function HomePage() {
@@ -13,10 +13,10 @@ export default function HomePage() {
 
     const meQuery = useQuery(trpc.user.me.queryOptions());
 
-    const canManageUsers =
-        meQuery.data?.role.permissions.some(
-            (permission) => permission.name === MANAGE_USERS_PERMISSION
-        ) ?? false;
+    const canManageUsers = hasPermission(
+        meQuery.data?.role.permissions,
+        MANAGE_USERS_PERMISSION
+    );
 
     useEffect(() => {
         if (meQuery.isLoading) {

@@ -21,6 +21,30 @@ export const SOLICITACAO_ROLES = ["Professor", "Convidado", "Coordenador"] as co
 
 export type SolicitacaoRole = (typeof SOLICITACAO_ROLES)[number];
 
-export function canAccessSolicitacoes(roleName: string | null | undefined): boolean {
-  return SOLICITACAO_ROLES.includes((roleName ?? "") as SolicitacaoRole);
+export function normalizeString(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
+
+export function canAccessSolicitacoes(roleName: string | null | undefined): boolean {
+  if (!roleName) return false;
+  const normalizedRole = normalizeString(roleName);
+  return SOLICITACAO_ROLES.some(
+    (role) => normalizeString(role) === normalizedRole
+  );
+}
+
+export function hasPermission(
+  permissions: (string | { name: string })[] | null | undefined,
+  permissionToCheck: string
+): boolean {
+  if (!permissions) return false;
+  const normalizedCheck = normalizeString(permissionToCheck);
+  return permissions.some((p) => {
+    const name = typeof p === "string" ? p : p.name;
+    return normalizeString(name) === normalizedCheck;
+  });
+}
+
