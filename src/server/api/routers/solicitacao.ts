@@ -141,7 +141,17 @@ export const solicitacaoRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Solicitação não encontrada." });
       }
 
-      await ctx.prisma.solicitacao.delete({ where: { id: input.id } });
+      if (solicitacao.status !== "AGUARDANDO") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Só é possível cancelar solicitações que ainda estão aguardando aprovação.",
+        });
+      }
+
+      await ctx.prisma.solicitacao.update({
+        where: { id: input.id },
+        data: { status: "CANCELADA" },
+      });
 
       return { success: true };
     }),

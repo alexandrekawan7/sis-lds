@@ -175,7 +175,8 @@ export default function Solicitacao() {
                   solicitacoes.map((solicitacao) => {
                     const status = STATUS_LABELS[solicitacao.status];
                     const podeEditar = solicitacao.status === "AGUARDANDO";
-
+                    const podeCancelar = solicitacao.status === "AGUARDANDO";
+ 
                     return (
                       <div
                         key={solicitacao.id}
@@ -194,13 +195,14 @@ export default function Solicitacao() {
                               Solicitação #{solicitacao.id}
                             </h2>
                           </div>
-
+ 
                           <div className="flex gap-3">
                             <button
                               type="button"
                               onClick={() => handleCancelar(solicitacao.id)}
-                              disabled={cancelarMutation.isPending}
-                              className="rounded-xl bg-[#d92d2d] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#bd2626] disabled:opacity-60"
+                              disabled={!podeCancelar || cancelarMutation.isPending}
+                              title={podeCancelar ? undefined : "Só é possível cancelar solicitações aguardando aprovação"}
+                              className="rounded-xl bg-[#d92d2d] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#bd2626] disabled:opacity-50"
                             >
                               Cancelar
                             </button>
