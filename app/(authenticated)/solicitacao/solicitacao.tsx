@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
-import { canAccessSolicitacoes } from "@/lib/permissions";
+import { canAccessSolicitacoes, hasPermission } from "@/lib/permissions";
 import { useTRPC } from "@/trpc/react";
 
 import NovaSolicitacao, { type SolicitacaoFormValues } from "./nova-solicitacao";
 
 type SolicitacaoItem = {
   id: number;
+  solicitanteId: number;
   tipoPapel: string;
   intuito: string;
   copias: number;
@@ -20,9 +21,10 @@ type SolicitacaoItem = {
   cor: string;
   acabamento: string;
   documento: string | null;
+  documentId: string | null;
   dataRetirada: string;
   horarioRetirada: string;
-  status: "AGUARDANDO" | "APROVADA" | "REJEITADA" | "CONCLUIDA" | "CANCELADA";
+  status: "AGUARDANDO" | "APROVADA" | "REJEITADA" | "IMPRIMINDO" | "IMPRESSA" | "CANCELADA";
   solicitante: { nome: string; cargo: string; departamento: string };
 };
 
@@ -30,7 +32,8 @@ const STATUS_LABELS: Record<SolicitacaoItem["status"], { label: string; classNam
   AGUARDANDO: { label: "Aguardando...", className: "text-[#e0892b]" },
   APROVADA: { label: "Aprovada", className: "text-[#3b62d8]" },
   REJEITADA: { label: "Rejeitada", className: "text-[#d92d2d]" },
-  CONCLUIDA: { label: "Concluída", className: "text-[#2ea03b]" },
+  IMPRIMINDO: { label: "Imprimindo", className: "text-[#8a2be2]" },
+  IMPRESSA: { label: "Impressa", className: "text-[#2ea03b]" },
   CANCELADA: { label: "Cancelada", className: "text-[#7a7a7a]" },
 };
 
@@ -59,6 +62,7 @@ function toFormValues(solicitacao: SolicitacaoItem): SolicitacaoFormValues {
     cor: solicitacao.cor,
     acabamento: solicitacao.acabamento,
     documento: solicitacao.documento,
+    documentId: solicitacao.documentId,
     dataRetirada: solicitacao.dataRetirada,
     horarioRetirada: solicitacao.horarioRetirada,
   };
@@ -73,18 +77,57 @@ export default function Solicitacao() {
 
   const meQuery = useQuery(trpc.user.me.queryOptions());
 
-  const canAccess = canAccessSolicitacoes(meQuery.data?.role.name);
+  const hasVisTodas = hasPermission(meQuery.data?.role.permissions, "Visualizar todas as solicitações de impressão");
+  const hasCriar = hasPermission(meQuery.data?.role.permissions, "Criar solicitações de impressão");
+  const hasAprovar = hasPermission(meQuery.data?.role.permissions, "Aprovar solicitações de impressão");
+  const hasRejeitar = hasPermission(meQuery.data?.role.permissions, "Rejeitar solicitações de impressão");
+  const hasImprimir = hasPermission(meQuery.data?.role.permissions, "Executar impressão de documentos");
 
-  const solicitacoesQuery = useQuery({
+  const canSeeAll = hasVisTodas || hasImprimir;
+  const canAccess = canAccessSolicitacoes(meQuery.data?.role.name) || canSeeAll;
+
+  const minhasQuery = useQuery({
     ...trpc.solicitacao.minhas.queryOptions(),
-    enabled: canAccess,
+    enabled: canAccess && !canSeeAll && !!meQuery.data,
   });
+
+  const todasQuery = useQuery({
+    ...trpc.solicitacao.todas.queryOptions(),
+    enabled: canAccess && canSeeAll && !!meQuery.data,
+  });
+
+  const solicitacoes = (canSeeAll ? todasQuery.data : minhasQuery.data) ?? [];
+  const isLoadingSolicitacoes = minhasQuery.isLoading || todasQuery.isLoading;
+
+  const refetch = () => {
+    if (canSeeAll) {
+      void todasQuery.refetch();
+    } else {
+      void minhasQuery.refetch();
+    }
+  };
 
   const cancelarMutation = useMutation(
     trpc.solicitacao.cancelar.mutationOptions({
-      onSuccess: () => {
-        void solicitacoesQuery.refetch();
-      },
+      onSuccess: () => refetch(),
+    })
+  );
+
+  const aprovarMutation = useMutation(
+    trpc.solicitacao.aprovar.mutationOptions({
+      onSuccess: () => refetch(),
+    })
+  );
+
+  const rejeitarMutation = useMutation(
+    trpc.solicitacao.rejeitar.mutationOptions({
+      onSuccess: () => refetch(),
+    })
+  );
+
+  const iniciarImpressaoMutation = useMutation(
+    trpc.solicitacao.iniciarImpressao.mutationOptions({
+      onSuccess: () => refetch(),
     })
   );
 
@@ -102,6 +145,29 @@ export default function Solicitacao() {
     if (window.confirm("Deseja realmente cancelar esta solicitação?")) {
       cancelarMutation.mutate({ id });
     }
+  };
+
+  const handleAprovar = (id: number) => {
+    if (window.confirm("Deseja realmente aprovar esta solicitação?")) {
+      aprovarMutation.mutate({ id });
+    }
+  };
+
+  const handleRejeitar = (id: number) => {
+    if (window.confirm("Deseja realmente rejeitar esta solicitação?")) {
+      rejeitarMutation.mutate({ id });
+    }
+  };
+
+  const handleIniciarImpressao = async (id: number) => {
+    if (window.confirm("Deseja iniciar a impressão desta solicitação?")) {
+      await iniciarImpressaoMutation.mutateAsync({ id });
+      router.push(`/solicitacao/${id}/imprimir`);
+    }
+  };
+
+  const handleContinuarImpressao = (id: number) => {
+    router.push(`/solicitacao/${id}/imprimir`);
   };
 
   // Protege a rota: quem não é Professor/Convidado/Coordenador volta ao perfil.
@@ -129,7 +195,6 @@ export default function Solicitacao() {
   }
 
   const me = meQuery.data;
-  const solicitacoes = solicitacoesQuery.data ?? [];
 
   return (
     <main className="relative flex-1 px-16 pb-16 pt-12">
@@ -144,26 +209,30 @@ export default function Solicitacao() {
                 onCreated={() => {
                   setView("list");
                   setEditing(null);
-                  void solicitacoesQuery.refetch();
+                  refetch();
                 }}
               />
             </div>
           ) : (
             <>
-              <h1 className="mt-6 text-[26px] font-bold text-[#1f1f1f]">Minhas Solicitações</h1>
+              <h1 className="mt-6 text-[26px] font-bold text-[#1f1f1f]">
+                {canSeeAll ? "Todas as Solicitações" : "Minhas Solicitações"}
+              </h1>
 
-              <div className="mt-8 flex justify-center">
-                <button
-                  type="button"
-                  onClick={openCreate}
-                  className="w-full max-w-145 rounded-full bg-[#2ea03b] py-4 text-[18px] font-bold text-white transition hover:bg-[#228d2e]"
-                >
-                  Solicitar Impressão
-                </button>
-              </div>
+              {hasCriar && (
+                <div className="mt-8 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={openCreate}
+                    className="w-full max-w-145 rounded-full bg-[#2ea03b] py-4 text-[18px] font-bold text-white transition hover:bg-[#228d2e]"
+                  >
+                    Solicitar Impressão
+                  </button>
+                </div>
+              )}
 
               <div className="mt-10 space-y-6">
-                {solicitacoesQuery.isLoading ? (
+                {isLoadingSolicitacoes ? (
                   <div className="rounded-2xl border border-black/15 bg-white p-8 shadow-soft">
                     <p className="text-[15px] font-semibold text-[#7a7a7a]">Carregando solicitações...</p>
                   </div>
@@ -174,8 +243,9 @@ export default function Solicitacao() {
                 ) : (
                   solicitacoes.map((solicitacao) => {
                     const status = STATUS_LABELS[solicitacao.status];
-                    const podeEditar = solicitacao.status === "AGUARDANDO";
-                    const podeCancelar = solicitacao.status === "AGUARDANDO";
+                    const isOwner = solicitacao.solicitanteId === Number(me?.id);
+                    const podeEditar = isOwner && solicitacao.status === "AGUARDANDO";
+                    const podeCancelar = isOwner && solicitacao.status === "AGUARDANDO";
  
                     return (
                       <div
@@ -197,24 +267,67 @@ export default function Solicitacao() {
                           </div>
  
                           <div className="flex gap-3">
-                            <button
-                              type="button"
-                              onClick={() => handleCancelar(solicitacao.id)}
-                              disabled={!podeCancelar || cancelarMutation.isPending}
-                              title={podeCancelar ? undefined : "Só é possível cancelar solicitações aguardando aprovação"}
-                              className="rounded-xl bg-[#d92d2d] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#bd2626] disabled:opacity-50"
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openEdit(solicitacao)}
-                              disabled={!podeEditar}
-                              title={podeEditar ? undefined : "Só é possível editar enquanto aguarda aprovação"}
-                              className="rounded-xl bg-[#3b62d8] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#3354bd] disabled:opacity-50"
-                            >
-                              Editar
-                            </button>
+                            {isOwner && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelar(solicitacao.id)}
+                                  disabled={!podeCancelar || cancelarMutation.isPending}
+                                  title={podeCancelar ? undefined : "Só é possível cancelar solicitações aguardando aprovação"}
+                                  className="rounded-xl bg-[#d92d2d] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#bd2626] disabled:opacity-50"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openEdit(solicitacao)}
+                                  disabled={!podeEditar}
+                                  title={podeEditar ? undefined : "Só é possível editar enquanto aguarda aprovação"}
+                                  className="rounded-xl bg-[#3b62d8] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#3354bd] disabled:opacity-50"
+                                >
+                                  Editar
+                                </button>
+                              </>
+                            )}
+                            {hasAprovar && solicitacao.status === "AGUARDANDO" && (
+                              <button
+                                type="button"
+                                onClick={() => handleAprovar(solicitacao.id)}
+                                disabled={aprovarMutation.isPending}
+                                className="rounded-xl bg-[#2ea03b] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#228d2e] disabled:opacity-50"
+                              >
+                                Aprovar
+                              </button>
+                            )}
+                            {hasRejeitar && solicitacao.status === "AGUARDANDO" && (
+                              <button
+                                type="button"
+                                onClick={() => handleRejeitar(solicitacao.id)}
+                                disabled={rejeitarMutation.isPending}
+                                className="rounded-xl bg-[#d92d2d] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#bd2626] disabled:opacity-50"
+                              >
+                                Rejeitar
+                              </button>
+                            )}
+                            {hasImprimir && solicitacao.status === "APROVADA" && (
+                              <button
+                                type="button"
+                                onClick={() => handleIniciarImpressao(solicitacao.id)}
+                                disabled={iniciarImpressaoMutation.isPending}
+                                className="rounded-xl bg-[#8a2be2] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#7825c4] disabled:opacity-50"
+                              >
+                                Iniciar impressão
+                              </button>
+                            )}
+                            {hasImprimir && solicitacao.status === "IMPRIMINDO" && (
+                              <button
+                                type="button"
+                                onClick={() => handleContinuarImpressao(solicitacao.id)}
+                                className="rounded-xl bg-[#8a2be2] px-5 py-2 text-[15px] font-bold text-white transition hover:bg-[#7825c4]"
+                              >
+                                Continuar impressão
+                              </button>
+                            )}
                           </div>
                         </div>
 

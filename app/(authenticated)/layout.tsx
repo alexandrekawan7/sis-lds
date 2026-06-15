@@ -35,7 +35,10 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     MANAGE_USERS_PERMISSION
   );
 
-  const canAccessSolicitacao = canAccessSolicitacoes(meQuery.data?.role.name);
+  const canAccessSolicitacao =
+    canAccessSolicitacoes(meQuery.data?.role.name) ||
+    hasPermission(meQuery.data?.role.permissions, "Visualizar todas as solicitações de impressão") ||
+    hasPermission(meQuery.data?.role.permissions, "Executar impressão de documentos");
 
   useEffect(() => {
     if (meQuery.isLoading) return;

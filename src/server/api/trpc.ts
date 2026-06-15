@@ -33,7 +33,11 @@ const canManageUsers = t.middleware(({ ctx, next }) => {
 });
 
 const canAccessSolicitacao = t.middleware(({ ctx, next }) => {
-  if (!canAccessSolicitacoes(ctx.session?.user?.role)) {
+  const hasAccess = canAccessSolicitacoes(ctx.session?.user?.role);
+  const hasVisTodas = hasPermission(ctx.session?.user?.permissions, "Visualizar todas as solicitações de impressão");
+  const hasImprimir = hasPermission(ctx.session?.user?.permissions, "Executar impressão de documentos");
+
+  if (!hasAccess && !hasVisTodas && !hasImprimir) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
 

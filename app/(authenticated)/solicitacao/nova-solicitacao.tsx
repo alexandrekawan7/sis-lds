@@ -20,6 +20,7 @@ export type SolicitacaoFormValues = {
   acabamento: string;
   // Etapa 3
   documento: string | null;
+  documentId: string | null;
   dataRetirada: string;
   horarioRetirada: string;
 };
@@ -36,6 +37,7 @@ const INITIAL_FORM: FormState = {
   cor: "Preto e Branco",
   acabamento: "Grampeado",
   documento: null,
+  documentId: null,
   dataRetirada: "",
   horarioRetirada: "12:00",
 };
@@ -135,6 +137,11 @@ export default function NovaSolicitacao({
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<FormState>(initialValues ?? INITIAL_FORM);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const uploadMutation = useMutation(
+    trpc.document.uploadDocument.mutationOptions()
+  );
 
   const criarMutation = useMutation(
     trpc.solicitacao.criar.mutationOptions({
@@ -158,7 +165,7 @@ export default function NovaSolicitacao({
     })
   );
 
-  const isSaving = criarMutation.isPending || atualizarMutation.isPending;
+  const isSaving = criarMutation.isPending || atualizarMutation.isPending || uploadMutation.isPending;
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -176,7 +183,15 @@ export default function NovaSolicitacao({
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    update("documento", file ? file.name : null);
+    if (file) {
+      setSelectedFile(file);
+      update("documento", file.name);
+      update("documentId", null);
+    } else {
+      setSelectedFile(null);
+      update("documento", null);
+      update("documentId", null);
+    }
     event.target.value = "";
   };
 
@@ -189,6 +204,34 @@ export default function NovaSolicitacao({
       return;
     }
 
+    let uploadedDocumentId = form.documentId;
+
+    if (selectedFile) {
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(selectedFile);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (error) => reject(error);
+        });
+
+        // O backend espera o base64 puro, sem o prefixo data:image/png;base64,
+        const base64Data = base64.includes(",")
+          ? base64.substring(base64.indexOf(",") + 1)
+          : base64;
+
+        const uploadResult = await uploadMutation.mutateAsync({
+          filename: selectedFile.name,
+          fileBuffer: base64Data,
+        });
+
+        uploadedDocumentId = uploadResult.id;
+      } catch (error: any) {
+        setErrorMessage(error.message || "Erro ao fazer upload do documento.");
+        return;
+      }
+    }
+
     const payload = {
       tipoPapel: form.tipoPapel,
       intuito: form.intuito,
@@ -199,6 +242,7 @@ export default function NovaSolicitacao({
       cor: form.cor,
       acabamento: form.acabamento,
       documento: form.documento,
+      documentId: uploadedDocumentId,
       dataRetirada: form.dataRetirada,
       horarioRetirada: form.horarioRetirada,
     };
