@@ -267,8 +267,17 @@ export default function DepartmentsPage() {
 
                           <button
                             onClick={() => setDeleteTarget(department)}
-                            className="text-red-600 transition hover:scale-110"
-                            title="Excluir"
+                            disabled={department._count.users > 0}
+                            className={`transition ${
+                              department._count.users > 0
+                                ? "cursor-not-allowed text-gray-300"
+                                : "text-red-600 hover:scale-110"
+                            }`}
+                            title={
+                              department._count.users > 0
+                                ? "Nao e possivel excluir um departamento com usuarios"
+                                : "Excluir"
+                            }
                           >
                             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 11h12a2 2 0 0 0 2-2V8H4v10a2 2 0 0 0 2 2Z" />

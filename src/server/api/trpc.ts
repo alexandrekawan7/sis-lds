@@ -6,6 +6,26 @@ import { initTRPC, TRPCError } from "@trpc/server";
 export async function createTRPCContext() {
   const session = await auth();
 
+  if (session?.user?.id) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: Number(session.user.id) },
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
+    });
+
+    if (dbUser) {
+      session.user.role = dbUser.role.name;
+      session.user.permissions = dbUser.role.permissions.map(
+        (p) => p.name
+      ) as any;
+    }
+  }
+
   return {
     prisma,
     session,

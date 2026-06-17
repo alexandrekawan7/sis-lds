@@ -8,6 +8,7 @@ import Image from "next/image";
 
 import { canAccessSolicitacoes, hasPermission, MANAGE_USERS_PERMISSION } from "@/lib/permissions";
 import { useTRPC } from "@/trpc/react";
+import NotificationBell from "./NotificationBell";
 
 function getInitials(name: string) {
   const parts = name
@@ -316,6 +317,9 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
         </aside>
 
         {children}
+        <div className="fixed right-8 top-8 z-50">
+          <NotificationBell />
+        </div>
       </div>
     </div>
   );

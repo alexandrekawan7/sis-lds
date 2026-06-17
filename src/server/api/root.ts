@@ -2,6 +2,7 @@ import { roleRouter } from "@/server/api/routers/role";
 import { solicitacaoRouter } from "@/server/api/routers/solicitacao";
 import { userRouter } from "@/server/api/routers/user";
 import { documentRouter } from "@/server/api/routers/document";
+import { notificationRouter } from "@/server/api/routers/notification";
 import { createTRPCRouter } from "@/server/api/trpc";
 
 export const appRouter = createTRPCRouter({
@@ -9,6 +10,7 @@ export const appRouter = createTRPCRouter({
   solicitacao: solicitacaoRouter,
   user: userRouter,
   document: documentRouter,
+  notification: notificationRouter,
 });
 
 export type AppRouter = typeof appRouter;

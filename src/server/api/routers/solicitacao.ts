@@ -149,6 +149,26 @@ export const solicitacaoRouter = createTRPCRouter({
         },
       });
 
+      const allUsers = await ctx.prisma.user.findMany({
+        include: {
+          role: {
+            include: { permissions: true }
+          }
+        }
+      });
+
+      const approvers = allUsers.filter(u => hasPermission(u.role.permissions, "Aprovar solicitações de impressão"));
+
+      if (approvers.length > 0) {
+        await ctx.prisma.notification.createMany({
+          data: approvers.map(approver => ({
+            userId: approver.id,
+            message: `Nova solicitação de impressão criada e aguardando aprovação.`,
+            link: "/solicitacao"
+          }))
+        });
+      }
+
       return { success: true, id: solicitacao.id };
     }),
 
@@ -233,6 +253,34 @@ export const solicitacaoRouter = createTRPCRouter({
         data: { status: "APROVADA" },
       });
 
+      await ctx.prisma.notification.create({
+        data: {
+          userId: solicitacao.solicitanteId,
+          message: `Sua solicitação de impressão foi aprovada.`,
+          link: "/solicitacao",
+        }
+      });
+
+      const allUsers = await ctx.prisma.user.findMany({
+        include: {
+          role: {
+            include: { permissions: true }
+          }
+        }
+      });
+
+      const printers = allUsers.filter(u => hasPermission(u.role.permissions, "Executar impressão de documentos"));
+
+      if (printers.length > 0) {
+        await ctx.prisma.notification.createMany({
+          data: printers.map(printer => ({
+            userId: printer.id,
+            message: `Uma nova solicitação foi aprovada e está pronta para impressão.`,
+            link: "/solicitacao"
+          }))
+        });
+      }
+
       return { success: true };
     }),
 
@@ -259,6 +307,14 @@ export const solicitacaoRouter = createTRPCRouter({
       await ctx.prisma.solicitacao.update({
         where: { id: input.id },
         data: { status: "REJEITADA" },
+      });
+
+      await ctx.prisma.notification.create({
+        data: {
+          userId: solicitacao.solicitanteId,
+          message: `Sua solicitação de impressão foi rejeitada.`,
+          link: "/solicitacao",
+        }
       });
 
       return { success: true };
@@ -344,6 +400,14 @@ export const solicitacaoRouter = createTRPCRouter({
       await ctx.prisma.solicitacao.update({
         where: { id: input.id },
         data: { status: "IMPRESSA" },
+      });
+
+      await ctx.prisma.notification.create({
+        data: {
+          userId: solicitacao.solicitanteId,
+          message: `A impressão da sua solicitação foi concluída.`,
+          link: "/solicitacao",
+        }
       });
 
       return { success: true };

@@ -39,6 +39,7 @@ model User {
   department    Department    @relation(fields: [departmentId], references: [id])
   documents     Document[]    @relation("UserDocuments")
   solicitacoes  Solicitacao[]
+  notifications Notification[]
 }
 
 enum SolicitacaoStatus {
@@ -93,4 +94,15 @@ model Document {
   createdById  Int
   createdBy    User          @relation("UserDocuments", fields: [createdById], references: [id], onDelete: Cascade)
   solicitacoes Solicitacao[] @relation("DocumentSolicitacao")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
