@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { canAccessSolicitacoes, hasPermission } from "@/lib/permissions";
-import { useTRPC } from "@/trpc/react";
+import { useTRPC, useTRPCClient } from "@/trpc/react";
 
 import NovaSolicitacao, { type SolicitacaoFormValues } from "./nova-solicitacao";
 
@@ -71,9 +71,16 @@ function toFormValues(solicitacao: SolicitacaoItem): SolicitacaoFormValues {
 export default function Solicitacao() {
   const router = useRouter();
   const trpc = useTRPC();
+  const trpcClient = useTRPCClient();
 
   const [view, setView] = useState<"list" | "form">("list");
   const [editing, setEditing] = useState<SolicitacaoItem | null>(null);
+  const [filterDate, setFilterDate] = useState(() => {
+    // Retorna YYYY-MM-DD do fuso local
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    return now.toISOString().slice(0, 10);
+  });
 
   const meQuery = useQuery(trpc.user.me.queryOptions());
 
@@ -87,12 +94,12 @@ export default function Solicitacao() {
   const canAccess = canAccessSolicitacoes(meQuery.data?.role.name) || canSeeAll;
 
   const minhasQuery = useQuery({
-    ...trpc.solicitacao.minhas.queryOptions(),
+    ...trpc.solicitacao.minhas.queryOptions({ date: filterDate || undefined }),
     enabled: canAccess && !canSeeAll && !!meQuery.data,
   });
 
   const todasQuery = useQuery({
-    ...trpc.solicitacao.todas.queryOptions(),
+    ...trpc.solicitacao.todas.queryOptions({ date: filterDate || undefined }),
     enabled: canAccess && canSeeAll && !!meQuery.data,
   });
 
@@ -170,6 +177,25 @@ export default function Solicitacao() {
     router.push(`/solicitacao/${id}/imprimir`);
   };
 
+  const [isDownloading, setIsDownloading] = useState(false);
+  const handleDownloadDocument = async (documentId: string, filename: string) => {
+    try {
+      setIsDownloading(true);
+      const doc = await trpcClient.document.getDocumentWithBase64.query({ documentId });
+      const link = document.createElement("a");
+      link.href = `data:${doc.mimeType};base64,${doc.base64Data}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao baixar o documento");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   // Protege a rota: quem não é Professor/Convidado/Coordenador volta ao perfil.
   useEffect(() => {
     if (meQuery.isLoading) return;
@@ -219,17 +245,35 @@ export default function Solicitacao() {
                 {canSeeAll ? "Todas as Solicitações" : "Minhas Solicitações"}
               </h1>
 
-              {hasCriar && (
-                <div className="mt-8 flex justify-center">
+              <div className="mt-8 flex flex-col items-center justify-between gap-4 sm:flex-row">
+                <div className="flex items-center gap-2 rounded-xl bg-white p-2 shadow-sm ring-1 ring-black/5">
+                  <label htmlFor="filterDate" className="text-sm font-semibold text-gray-700">Data:</label>
+                  <input
+                    type="date"
+                    id="filterDate"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                    className="rounded-lg border-none bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 outline-none transition focus:bg-white focus:ring-2 focus:ring-[#2ea03b]"
+                  />
+                  <button
+                    onClick={() => setFilterDate("")}
+                    className="rounded-lg px-3 py-2 text-sm font-semibold text-[#555] transition hover:bg-gray-100"
+                    title="Limpar filtro"
+                  >
+                    Ver todas
+                  </button>
+                </div>
+
+                {hasCriar && (
                   <button
                     type="button"
                     onClick={openCreate}
-                    className="w-full max-w-145 rounded-full bg-[#2ea03b] py-4 text-[18px] font-bold text-white transition hover:bg-[#228d2e]"
+                    className="w-full max-w-[240px] rounded-full bg-[#2ea03b] py-3 px-6 text-[16px] font-bold text-white transition hover:bg-[#228d2e]"
                   >
                     Solicitar Impressão
                   </button>
-                </div>
-              )}
+                )}
+              </div>
 
               <div className="mt-10 space-y-6">
                 {isLoadingSolicitacoes ? (
@@ -360,8 +404,14 @@ export default function Solicitacao() {
                               <p>Acabamento: {solicitacao.acabamento}</p>
                               <p>
                                 Anexo:{" "}
-                                {solicitacao.documento ? (
-                                  <span className="text-[#2563c9] underline">{solicitacao.documento}</span>
+                                {solicitacao.documento && solicitacao.documentId ? (
+                                  <button
+                                    onClick={() => handleDownloadDocument(solicitacao.documentId!, solicitacao.documento!)}
+                                    disabled={isDownloading}
+                                    className="text-[#2563c9] underline hover:text-[#1d4ed8] disabled:opacity-50"
+                                  >
+                                    {solicitacao.documento}
+                                  </button>
                                 ) : (
                                   "nenhum"
                                 )}

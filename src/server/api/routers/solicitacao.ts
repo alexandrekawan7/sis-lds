@@ -48,11 +48,21 @@ function currentUserId(ctx: { session?: { user?: { id?: string } } | null }) {
  * que apenas usuários com cargo Professor, Convidado ou Coordenador acessem.
  */
 export const solicitacaoRouter = createTRPCRouter({
-  minhas: solicitacaoProcedure.query(async ({ ctx }) => {
-    const userId = currentUserId(ctx);
+  minhas: solicitacaoProcedure
+    .input(z.object({ date: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const userId = currentUserId(ctx);
 
-    const solicitacoes = await ctx.prisma.solicitacao.findMany({
-      where: { solicitanteId: userId },
+      const whereClause: any = { solicitanteId: userId };
+      
+      if (input?.date) {
+        const start = new Date(`${input.date}T00:00:00.000-03:00`);
+        const end = new Date(`${input.date}T23:59:59.999-03:00`);
+        whereClause.createdAt = { gte: start, lte: end };
+      }
+
+      const solicitacoes = await ctx.prisma.solicitacao.findMany({
+        where: whereClause,
       orderBy: { createdAt: "desc" },
       include: {
         solicitante: {
@@ -88,16 +98,26 @@ export const solicitacaoRouter = createTRPCRouter({
     }));
   }),
 
-  todas: solicitacaoProcedure.query(async ({ ctx }) => {
-    const hasVisTodas = hasPermission(ctx.session?.user?.permissions, "Visualizar todas as solicitações de impressão");
-    const hasImprimir = hasPermission(ctx.session?.user?.permissions, "Executar impressão de documentos");
+  todas: solicitacaoProcedure
+    .input(z.object({ date: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const hasVisTodas = hasPermission(ctx.session?.user?.permissions, "Visualizar todas as solicitações de impressão");
+      const hasImprimir = hasPermission(ctx.session?.user?.permissions, "Executar impressão de documentos");
 
-    if (!hasVisTodas && !hasImprimir) {
-      throw new TRPCError({ code: "FORBIDDEN" });
-    }
+      if (!hasVisTodas && !hasImprimir) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
 
-    const solicitacoes = await ctx.prisma.solicitacao.findMany({
-      orderBy: { createdAt: "desc" },
+      const whereClause: any = {};
+      if (input?.date) {
+        const start = new Date(`${input.date}T00:00:00.000-03:00`);
+        const end = new Date(`${input.date}T23:59:59.999-03:00`);
+        whereClause.createdAt = { gte: start, lte: end };
+      }
+
+      const solicitacoes = await ctx.prisma.solicitacao.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
       include: {
         solicitante: {
           include: {
