@@ -38,7 +38,9 @@ model User {
   departmentId  Int
   department    Department    @relation(fields: [departmentId], references: [id])
   documents     Document[]    @relation("UserDocuments")
-  solicitacoes  Solicitacao[]
+  solicitacoes  Solicitacao[] @relation("SolicitacaoSolicitante")
+  solicitacoesAprovadas Solicitacao[] @relation("SolicitacaoAprovador")
+  solicitacoesImpressas Solicitacao[] @relation("SolicitacaoImpressor")
   notifications Notification[]
 }
 
@@ -71,7 +73,15 @@ model Solicitacao {
   horarioRetirada String
   status          SolicitacaoStatus @default(AGUARDANDO)
   solicitanteId   Int
-  solicitante     User              @relation(fields: [solicitanteId], references: [id], onDelete: Cascade)
+  solicitante     User              @relation("SolicitacaoSolicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
+  // Aprovação / rejeição (coordenador responsável)
+  aprovadorId     Int?
+  aprovador       User?             @relation("SolicitacaoAprovador", fields: [aprovadorId], references: [id], onDelete: SetNull)
+  decididoEm      DateTime?
+  // Impressão (impressor responsável)
+  impressorId     Int?
+  impressor       User?             @relation("SolicitacaoImpressor", fields: [impressorId], references: [id], onDelete: SetNull)
+  folhasPerdidas  Int               @default(0)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }

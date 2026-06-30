@@ -270,7 +270,11 @@ export const solicitacaoRouter = createTRPCRouter({
 
       await ctx.prisma.solicitacao.update({
         where: { id: input.id },
-        data: { status: "APROVADA" },
+        data: {
+          status: "APROVADA",
+          aprovadorId: currentUserId(ctx),
+          decididoEm: new Date(),
+        },
       });
 
       await ctx.prisma.notification.create({
@@ -326,7 +330,11 @@ export const solicitacaoRouter = createTRPCRouter({
 
       await ctx.prisma.solicitacao.update({
         where: { id: input.id },
-        data: { status: "REJEITADA" },
+        data: {
+          status: "REJEITADA",
+          aprovadorId: currentUserId(ctx),
+          decididoEm: new Date(),
+        },
       });
 
       await ctx.prisma.notification.create({
@@ -391,14 +399,26 @@ export const solicitacaoRouter = createTRPCRouter({
 
       await ctx.prisma.solicitacao.update({
         where: { id: input.id },
-        data: { status: "IMPRIMINDO" },
+        data: {
+          status: "IMPRIMINDO",
+          impressorId: currentUserId(ctx),
+        },
       });
 
       return { success: true };
     }),
 
   concluirImpressao: solicitacaoProcedure
-    .input(z.object({ id: z.number().int().positive() }))
+    .input(
+      z.object({
+        id: z.number().int().positive(),
+        folhasPerdidas: z
+          .number()
+          .int("Informe um número inteiro de folhas")
+          .min(0, "O número de folhas perdidas não pode ser negativo")
+          .default(0),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       if (!hasPermission(ctx.session?.user?.permissions, "Executar impressão de documentos")) {
         throw new TRPCError({ code: "FORBIDDEN" });
@@ -419,7 +439,11 @@ export const solicitacaoRouter = createTRPCRouter({
 
       await ctx.prisma.solicitacao.update({
         where: { id: input.id },
-        data: { status: "IMPRESSA" },
+        data: {
+          status: "IMPRESSA",
+          folhasPerdidas: input.folhasPerdidas,
+          impressorId: solicitacao.impressorId ?? currentUserId(ctx),
+        },
       });
 
       await ctx.prisma.notification.create({

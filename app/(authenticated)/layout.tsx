@@ -41,6 +41,11 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     hasPermission(meQuery.data?.role.permissions, "Visualizar todas as solicitações de impressão") ||
     hasPermission(meQuery.data?.role.permissions, "Executar impressão de documentos");
 
+  const canViewReports = hasPermission(
+    meQuery.data?.role.permissions,
+    "Visualizar e exportar relatórios de folhas"
+  );
+
   useEffect(() => {
     if (meQuery.isLoading) return;
 
@@ -151,9 +156,9 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
           <nav className="space-y-3 text-[18px] font-medium">
             <button
               type="button"
-              onClick={() => router.push("/home")}
+              onClick={() => router.push("/dashboard")}
               className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
-                pathname === "/home" ? "bg-[#228d2e]" : ""
+                pathname === "/home" || pathname?.startsWith("/dashboard") ? "bg-[#228d2e]" : ""
               } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
             >
               <svg className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
@@ -272,6 +277,38 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
                   }`}
                 >
                   Departamentos
+                </span>
+              </button>
+            )}
+
+            {canViewReports && (
+              <button
+                type="button"
+                onClick={() => router.push("/home/relatorios")}
+                className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
+                  pathname?.startsWith("/home/relatorios") ? "bg-[#228d2e]" : ""
+                } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+              >
+                <svg
+                  className="h-7 w-7"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 3v18h18" />
+                  <rect x="7" y="11" width="3" height="6" />
+                  <rect x="12" y="7" width="3" height="10" />
+                  <rect x="17" y="13" width="3" height="4" />
+                </svg>
+                <span
+                  className={`overflow-hidden whitespace-nowrap text-left text-[17px] transition-all duration-200 ${
+                    isSidebarOpen ? "max-w-40 opacity-100" : "max-w-0 opacity-0"
+                  }`}
+                >
+                  Relatórios
                 </span>
               </button>
             )}

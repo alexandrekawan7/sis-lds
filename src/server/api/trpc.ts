@@ -52,6 +52,14 @@ const canManageUsers = t.middleware(({ ctx, next }) => {
   return next({ ctx });
 });
 
+const canViewReports = t.middleware(({ ctx, next }) => {
+  if (!hasPermission(ctx.session?.user?.permissions, "Visualizar e exportar relatórios de folhas")) {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+
+  return next({ ctx });
+});
+
 const canAccessSolicitacao = t.middleware(({ ctx, next }) => {
   const hasAccess = canAccessSolicitacoes(ctx.session?.user?.role);
   const hasVisTodas = hasPermission(ctx.session?.user?.permissions, "Visualizar todas as solicitações de impressão");
@@ -69,3 +77,4 @@ export const publicProcedure = t.procedure;
 export const protectedProcedure = t.procedure.use(isAuthed);
 export const usersManageProcedure = protectedProcedure.use(canManageUsers);
 export const solicitacaoProcedure = protectedProcedure.use(canAccessSolicitacao);
+export const relatorioProcedure = protectedProcedure.use(canViewReports);

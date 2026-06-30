@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useState } from "react";
 
 import { useTRPC, useTRPCClient } from "@/trpc/react";
 
@@ -13,6 +13,10 @@ export default function ImprimirSolicitacaoPage() {
   const trpcClient = useTRPCClient();
 
   const id = Number(params?.id);
+
+  const [showConcluir, setShowConcluir] = useState(false);
+  const [folhasPerdidas, setFolhasPerdidas] = useState("0");
+  const [concluirError, setConcluirError] = useState("");
 
   const meQuery = useQuery(trpc.user.me.queryOptions());
 
@@ -25,6 +29,9 @@ export default function ImprimirSolicitacaoPage() {
     trpc.solicitacao.concluirImpressao.mutationOptions({
       onSuccess: () => {
         router.push("/solicitacao");
+      },
+      onError: (error) => {
+        setConcluirError(error.message);
       },
     })
   );
@@ -49,9 +56,18 @@ export default function ImprimirSolicitacaoPage() {
   };
 
   const handleConcluir = () => {
-    if (window.confirm("Deseja realmente marcar esta solicitação como impressa?")) {
-      concluirMutation.mutate({ id });
+    setConcluirError("");
+    setFolhasPerdidas("0");
+    setShowConcluir(true);
+  };
+
+  const handleConfirmConcluir = () => {
+    const parsed = Number(folhasPerdidas);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      setConcluirError("Informe um número inteiro de folhas (0 ou maior).");
+      return;
     }
+    concluirMutation.mutate({ id, folhasPerdidas: parsed });
   };
 
   if (solicitacaoQuery.isLoading || meQuery.isLoading) {
@@ -161,6 +177,56 @@ export default function ImprimirSolicitacaoPage() {
           </button>
         </div>
       </div>
+
+      {showConcluir && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
+            <h2 className="text-[20px] font-extrabold text-[#1f1f1f]">Concluir impressão</h2>
+            <p className="mt-2 text-[14px] text-[#555]">
+              Informe quantas folhas foram perdidas ou desperdiçadas durante esta impressão
+              (defeitos, atolamentos, reimpressões). Deixe 0 caso nenhuma tenha sido desperdiçada.
+            </p>
+
+            <label className="mt-6 block">
+              <span className="mb-1 block text-[14px] font-semibold text-[#3a3a3a]">
+                Folhas perdidas/desperdiçadas
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={folhasPerdidas}
+                onChange={(event) => setFolhasPerdidas(event.target.value)}
+                autoFocus
+                className="w-32 rounded-xl border border-black/40 bg-white px-4 py-2.5 text-[15px] text-[#333] outline-none focus:border-[#2ea03b]"
+              />
+            </label>
+
+            {concluirError && (
+              <p className="mt-3 text-[14px] text-[#d92d2d]">{concluirError}</p>
+            )}
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConcluir(false)}
+                disabled={concluirMutation.isPending}
+                className="rounded-xl bg-[#e9e9e9] px-5 py-2.5 text-[15px] font-bold text-[#333] transition hover:bg-[#d9d9d9] disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmConcluir}
+                disabled={concluirMutation.isPending}
+                className="rounded-xl bg-[#2ea03b] px-5 py-2.5 text-[15px] font-bold text-white transition hover:bg-[#228d2e] disabled:opacity-50"
+              >
+                {concluirMutation.isPending ? "Salvando..." : "Confirmar conclusão"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
