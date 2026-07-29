@@ -5,8 +5,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
-    "prebuild": "npx prisma generate",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "test": "npm run test:regression",
     "test:auth": "tsx scripts/test-auth-login.ts",
     "test:documents": "tsx scripts/test-document-process.ts",
