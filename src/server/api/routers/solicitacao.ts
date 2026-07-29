@@ -184,7 +184,7 @@ export const solicitacaoRouter = createTRPCRouter({
           data: approvers.map(approver => ({
             userId: approver.id,
             message: `Nova solicitação de impressão criada e aguardando aprovação.`,
-            link: "/solicitacao"
+            link: `/solicitacao#solicitacao-${solicitacao.id}`
           }))
         });
       }
@@ -281,7 +281,7 @@ export const solicitacaoRouter = createTRPCRouter({
         data: {
           userId: solicitacao.solicitanteId,
           message: `Sua solicitação de impressão foi aprovada.`,
-          link: "/solicitacao",
+          link: `/solicitacao#solicitacao-${solicitacao.id}`,
         }
       });
 
@@ -300,7 +300,7 @@ export const solicitacaoRouter = createTRPCRouter({
           data: printers.map(printer => ({
             userId: printer.id,
             message: `Uma nova solicitação foi aprovada e está pronta para impressão.`,
-            link: "/solicitacao"
+            link: `/solicitacao#solicitacao-${solicitacao.id}`
           }))
         });
       }
@@ -341,7 +341,7 @@ export const solicitacaoRouter = createTRPCRouter({
         data: {
           userId: solicitacao.solicitanteId,
           message: `Sua solicitação de impressão foi rejeitada.`,
-          link: "/solicitacao",
+          link: `/solicitacao#solicitacao-${solicitacao.id}`,
         }
       });
 
@@ -450,7 +450,7 @@ export const solicitacaoRouter = createTRPCRouter({
         data: {
           userId: solicitacao.solicitanteId,
           message: `A impressão da sua solicitação foi concluída.`,
-          link: "/solicitacao",
+          link: `/solicitacao#solicitacao-${solicitacao.id}`,
         }
       });
 

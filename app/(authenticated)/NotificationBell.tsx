@@ -47,6 +47,18 @@ export default function NotificationBell() {
     setIsOpen(false);
     if (notification.link) {
       router.push(notification.link);
+
+      setTimeout(() => {
+        if (notification.link.includes("#")) {
+          const hash = notification.link.substring(notification.link.indexOf("#"));
+          const el = document.querySelector(hash);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.classList.add("ring-4", "ring-[#2ea03b]", "ring-offset-2", "transition-shadow", "duration-1000");
+            setTimeout(() => el.classList.remove("ring-4", "ring-[#2ea03b]", "ring-offset-2"), 3000);
+          }
+        }
+      }, 200);
     }
   };
 

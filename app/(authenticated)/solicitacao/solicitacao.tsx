@@ -75,12 +75,7 @@ export default function Solicitacao() {
 
   const [view, setView] = useState<"list" | "form">("list");
   const [editing, setEditing] = useState<SolicitacaoItem | null>(null);
-  const [filterDate, setFilterDate] = useState(() => {
-    // Retorna YYYY-MM-DD do fuso local
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 10);
-  });
+  const [filterDate, setFilterDate] = useState("");
 
   const meQuery = useQuery(trpc.user.me.queryOptions());
 
@@ -210,6 +205,31 @@ export default function Solicitacao() {
     }
   }, [canAccess, meQuery.data, meQuery.isLoading, router]);
 
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith("#solicitacao-")) {
+        setTimeout(() => {
+          const element = document.querySelector(hash);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+            element.classList.add("ring-4", "ring-[#2ea03b]", "ring-offset-2", "transition-shadow", "duration-1000");
+            setTimeout(() => {
+              element.classList.remove("ring-4", "ring-[#2ea03b]", "ring-offset-2");
+            }, 3000);
+          }
+        }, 100);
+      }
+    };
+
+    if (!isLoadingSolicitacoes && solicitacoes.length > 0) {
+      handleHash();
+    }
+
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, [isLoadingSolicitacoes, solicitacoes]);
+
 
 
   if (meQuery.isLoading || !meQuery.data || !canAccess) {
@@ -294,6 +314,7 @@ export default function Solicitacao() {
                     return (
                       <div
                         key={solicitacao.id}
+                        id={`solicitacao-${solicitacao.id}`}
                         className="rounded-2xl border border-black/15 bg-white p-8 shadow-soft"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-4">

@@ -64,14 +64,14 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="border-b border-black/10 px-3 py-2 text-left text-[13px] font-extrabold text-[#1f1f1f]">
+    <th className="whitespace-nowrap border-b border-black/10 px-2 py-1.5 text-left text-[12px] font-extrabold text-[#1f1f1f]">
       {children}
     </th>
   );
 }
 
 function Td({ children }: { children: React.ReactNode }) {
-  return <td className="border-b border-black/5 px-3 py-2 text-[13px] text-[#3a3a3a]">{children}</td>;
+  return <td className="whitespace-nowrap border-b border-black/5 px-2 py-1.5 text-[12px] text-[#3a3a3a]">{children}</td>;
 }
 
 function Card({ title, value, hint }: { title: string; value: React.ReactNode; hint?: string }) {
@@ -133,14 +133,14 @@ export default function RelatoriosPage() {
 
   if (meQuery.isLoading || !meQuery.data || !canView) {
     return (
-      <main className="flex-1 p-8 md:p-16">
+      <main className="flex-1 min-w-0 p-8 md:p-16">
         <p className="text-[15px] font-semibold text-[#7a7a7a]">Carregando...</p>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 px-8 pb-16 pt-12 md:px-16">
+    <main className="flex-1 min-w-0 px-8 pb-16 pt-12 md:px-16">
       <h1 className="text-[26px] font-bold text-[#1f1f1f]">Relatórios</h1>
       <p className="mt-1 text-[15px] text-[#7a7a7a]">{periodoLabel}</p>
 

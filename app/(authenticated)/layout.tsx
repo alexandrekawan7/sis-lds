@@ -93,8 +93,8 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
           }`}
         >
           <div
-            className={`mb-12 flex items-start transition-all duration-200 ${
-              isSidebarOpen ? "justify-between gap-4" : "flex-col items-center gap-4"
+            className={`mb-12 flex transition-all duration-200 ${
+              isSidebarOpen ? "items-start justify-between gap-4" : "flex-col items-center gap-4"
             }`}
           >
             <div
@@ -159,9 +159,9 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
               onClick={() => router.push("/dashboard")}
               className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
                 pathname === "/home" || pathname?.startsWith("/dashboard") ? "bg-[#228d2e]" : ""
-              } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+              } ${isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"}`}
             >
-              <svg className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-7 w-7 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 3h7v4h-7v-4zm0-3h7v1h-7v-1z" />
               </svg>
               <span
@@ -179,10 +179,10 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
                 onClick={() => router.push("/solicitacao")}
                 className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
                   pathname?.startsWith("/solicitacao") ? "bg-[#228d2e]" : ""
-                } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+                } ${isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"}`}
               >
                 <svg
-                  className="h-7 w-7"
+                  className="h-7 w-7 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -208,10 +208,10 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
                 onClick={() => router.push("/home/users")}
                 className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
                   pathname?.startsWith("/home/users") ? "bg-[#228d2e]" : ""
-                } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+                } ${isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"}`}
               >
                 <svg
-                  className="h-7 w-7"
+                  className="h-7 w-7 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -237,9 +237,9 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
                 onClick={() => router.push("/home/roles")}
                 className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
                   pathname?.startsWith("/home/roles") ? "bg-[#228d2e]" : ""
-                } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+                } ${isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"}`}
               >
-                <svg className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-7 w-7 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 1.75 1.75 12 12 22.25 22.25 12 12 1.75Zm0 2.5 7.75 7.75L12 19.75 4.25 12 12 4.25Zm-1.25 3v3.5H7.25V13h3.5v3.5H13V13h3.5v-2.25H13v-3.5h-2.25Z" />
                 </svg>
                 <span
@@ -258,10 +258,10 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
                 onClick={() => router.push("/home/departments")}
                 className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
                   pathname?.startsWith("/home/departments") ? "bg-[#228d2e]" : ""
-                } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+                } ${isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"}`}
               >
                 <svg
-                  className="h-7 w-7"
+                  className="h-7 w-7 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -287,10 +287,10 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
                 onClick={() => router.push("/home/relatorios")}
                 className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
                   pathname?.startsWith("/home/relatorios") ? "bg-[#228d2e]" : ""
-                } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+                } ${isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"}`}
               >
                 <svg
-                  className="h-7 w-7"
+                  className="h-7 w-7 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -318,9 +318,9 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
               onClick={() => router.push("/perfil")}
               className={`shadow-nav flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
                 pathname?.startsWith("/perfil") ? "bg-[#228d2e]" : ""
-              } ${isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"}`}
+              } ${isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"}`}
             >
-              <svg className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-7 w-7 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5Z" />
               </svg>
               <span
@@ -336,10 +336,10 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
               className={`shadow-nav mt-1 flex w-full rounded-2xl py-3 transition hover:bg-white/10 ${
-                isSidebarOpen ? "items-center gap-4 px-3" : "justify-center px-0"
+                isSidebarOpen ? "items-center gap-4 px-3" : "items-center justify-center px-0"
               }`}
             >
-              <svg className="h-7 w-7" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-7 w-7 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M10 17v-2H3V9h7V7l4 5-4 5Zm4 4h3a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-3v2h3v14h-3v2Z" />
               </svg>
               <span
