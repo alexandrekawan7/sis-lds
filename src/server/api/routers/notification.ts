@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 
 export const notificationRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
-    const userId = Number(ctx.session.user.id);
+    const userId = Number(ctx.session?.user?.id);
+    if (!userId) throw new TRPCError({ code: "UNAUTHORIZED" });
     return ctx.prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -15,7 +17,8 @@ export const notificationRouter = createTRPCRouter({
   markAsRead: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
-      const userId = Number(ctx.session.user.id);
+      const userId = Number(ctx.session?.user?.id);
+      if (!userId) throw new TRPCError({ code: "UNAUTHORIZED" });
       
       const notification = await ctx.prisma.notification.findUnique({
         where: { id: input.id },
@@ -32,7 +35,8 @@ export const notificationRouter = createTRPCRouter({
     }),
 
   markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
-    const userId = Number(ctx.session.user.id);
+    const userId = Number(ctx.session?.user?.id);
+    if (!userId) throw new TRPCError({ code: "UNAUTHORIZED" });
     
     return ctx.prisma.notification.updateMany({
       where: { userId, read: false },
